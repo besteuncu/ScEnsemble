@@ -1,10 +1,9 @@
 Package: ScEnsemble
 Title: Ensemble Clustering for Single-Cell RNA-seq Data
 Version: 0.1.0
-Authors@R: 
-person("Beste", "Uncu", email = "besteuncu@gmail.com", role = c("aut", "cre"))
+Authors@R: person("Beste", "Uncu", email = "besteuncu@gmail.com", role = c("aut", "cre"))
 Description: This package applies multiple individual and ensemble clustering algorithms to single-cell RNA-seq data with integrated validation and visualization tools.
-License: GPL-3
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
