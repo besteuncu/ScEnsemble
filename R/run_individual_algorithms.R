@@ -1,25 +1,119 @@
-run_individual_algorithms <- function(data, true_labels = NULL) {
-  library(SingleCellExperiment)
-  library(SC3)
-  library(cidr)
-  library(Seurat)
-  library(SIMLR)
-  library(Rtsne)
-  library(cluster)
-  library(monocle3)
-  library(RaceID)
-  library(SHARP)
-  library(mclust)
+#' Run Individual Clustering Algorithms
+#'
+#' This function runs multiple single-cell clustering algorithms on the provided data
+#' and returns clustering results, performance metrics, and runtime information.
+#'
+#' @param data A numeric matrix or data frame containing single-cell expression data.
+#'   Rows represent genes and columns represent cells.
+#' @param true_labels Optional vector of true cluster labels for validation.
+#'   If provided, Adjusted Rand Index (ARI) will be calculated.
+#' @param algorithms Character vector specifying which algorithms to run.
+#'   Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID").
+#' @param seed Integer value for random seed to ensure reproducibility. Default is 42.
+#' @param verbose Logical indicating whether to print progress messages. Default is TRUE.
+#' @param n_cores Integer specifying number of cores to use for parallel processing where applicable.
+#'   Default is 1.
+#'
+#' @return A list containing:
+#' \describe{
+#'   \item{clustering_results}{Named list of clustering labels for each algorithm}
+#'   \item{ari_scores}{Named list of ARI scores (if true_labels provided)}
+#'   \item{runtimes}{Named list of algorithm runtimes in seconds}
+#'   \item{errors}{Named list of error messages for failed algorithms}
+#'   \item{embedding_data}{Named list of embedding/distance matrices for each algorithm}
+#' }
+#'
+#' @details
+#' The function supports the following clustering algorithms:
+#' \itemize{
+#'   \item SC3: Single-Cell Consensus Clustering
+#'   \item CIDR: Clustering through Imputation and Dimensionality Reduction
+#'   \item Seurat: Graph-based clustering with Louvain algorithm
+#'   \item SIMLR: Single-cell Interpretation via Multi-kernel Learning
+#'   \item TSNE_Kmeans: t-SNE followed by K-means clustering
+#'   \item Monocle: Trajectory-based clustering
+#'   \item RaceID: Rare Cell Identification
+#' }
+#'
+#' @examples
+#' # Load example data
+#' data(example_scdata)
+#'
+#' # Run all algorithms
+#' results <- run_individual_algorithms(example_scdata)
+#'
+#' # Run specific algorithms with true labels
+#' results <- run_individual_algorithms(
+#'   data = example_scdata,
+#'   true_labels = example_labels,
+#'   algorithms = c("SC3", "Seurat", "SIMLR")
+#' )
+#'
+#' @importFrom SingleCellExperiment SingleCellExperiment rowData colData
+#' @importFrom SC3 sc3_estimate_k sc3
+#' @importFrom cidr scDataConstructor determineDropoutCandidates wThreshold scDissim scPCA nPC scCluster
+#' @importFrom Seurat CreateSeuratObject NormalizeData FindVariableFeatures ScaleData RunPCA FindNeighbors FindClusters Embeddings Idents
+#' @importFrom SIMLR SIMLR_Estimate_Number_of_Clusters SIMLR
+#' @importFrom Rtsne Rtsne
+#' @importFrom cluster silhouette clusGap
+#' @importFrom monocle3 new_cell_data_set preprocess_cds reduce_dimension cluster_cells clusters
+#' @importFrom RaceID SCseq filterdata getfdata compdist clustexp
+#' @importFrom mclust adjustedRandIndex
+#' @importFrom stats prcomp kmeans
+#'
+#' @export
+run_individual_algorithms <- function(data,
+                                      true_labels = NULL,
+                                      algorithms = c("SC3", "CIDR", "Seurat", "SIMLR",
+                                                     "TSNE_Kmeans", "Monocle", "RaceID"),
+                                      seed = 42,
+                                      verbose = TRUE,
+                                      n_cores = 1) {
 
+  # Input validation
+  if (!is.matrix(data) && !is.data.frame(data)) {
+    stop("data must be a matrix or data frame")
+  }
+
+  if (is.data.frame(data)) {
+    data <- as.matrix(data)
+  }
+
+  if (!is.numeric(data)) {
+    stop("data must contain numeric values")
+  }
+
+  if (ncol(data) < 2) {
+    stop("data must have at least 2 cells (columns)")
+  }
+
+  if (nrow(data) < 2) {
+    stop("data must have at least 2 genes (rows)")
+  }
+
+  if (!is.null(true_labels) && length(true_labels) != ncol(data)) {
+    stop("Length of true_labels must match number of cells (columns) in data")
+  }
+
+  available_algorithms <- c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID")
+  if (!all(algorithms %in% available_algorithms)) {
+    stop("Invalid algorithm(s) specified. Available algorithms: ", paste(available_algorithms, collapse = ", "))
+  }
+
+  # Set seed for reproducibility
+  set.seed(seed)
+
+  # Initialize result lists
   clustering_results <- list()
   ari_scores <- list()
   runtimes <- list()
   errors <- list()
   embedding_data <- list()
 
-  algorithms <- list(
+  # Define algorithm functions
+  algorithm_functions <- list(
     SC3 = function(data) {
-      set.seed(42)
+      set.seed(seed)
       sce <- SingleCellExperiment(
         assays = list(counts = as.matrix(data),
                       logcounts = log2(as.matrix(data) + 1))
@@ -27,7 +121,7 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
       rowData(sce)$feature_symbol <- rownames(data)
       sce <- sc3_estimate_k(sce)
       estimated_k <- sce@metadata[["sc3"]][["k_estimation"]]
-      sce <- sc3(sce, ks = estimated_k, biology = TRUE, n_cores = 1)
+      sce <- sc3(sce, ks = estimated_k, biology = TRUE, n_cores = n_cores)
       sc3_data <- sce@metadata$sc3$consensus[[as.character(estimated_k)]]$consensus
       sc3_labels <- as.integer(sce@colData@listData[[paste0("sc3_", estimated_k, "_clusters")]])
       return(list(labels = sc3_labels, data = sc3_data))
@@ -81,12 +175,14 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
 
     TSNE_Kmeans = function(data) {
       pca_result <- prcomp(t(data))
-      pca_data <- pca_result$x[, 1:50]
-      set.seed(123)
-      tsne_result <- Rtsne(pca_data, dims = 2, perplexity = 30, check_duplicates = FALSE)
+      pca_data <- pca_result$x[, 1:min(50, ncol(pca_result$x))]
+      set.seed(seed)
+      tsne_result <- Rtsne(pca_data, dims = 2, perplexity = 30,
+                           check_duplicates = FALSE)
       tsne_data <- tsne_result$Y
-      gap_stat <- clusGap(tsne_data, FUN = kmeans, nstart = 25, K.max = 15, B = 50)
+      gap_stat <- clusGap(tsne_data, FUN = kmeans, nstart = 25, K.max = min(15, nrow(tsne_data)-1), B = 50)
       optimal_k <- with(gap_stat, maxSE(Tab[, "gap"], Tab[, "SE.sim"]))
+      set.seed(seed)
       kmeans_result <- kmeans(tsne_data, centers = optimal_k, nstart = 25)
       tsne_kmeans_labels <- kmeans_result$cluster
       return(list(labels = tsne_kmeans_labels, data = tsne_data))
@@ -106,7 +202,6 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
     },
 
     RaceID = function(data) {
-      # Veri kontrol?? ve haz??rl??????
       if(is.data.frame(data)) {
         data <- as.matrix(data)
       }
@@ -114,18 +209,21 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
       sc <- filterdata(sc, mintotal = 1000, minexpr = 5, minnumber = 1)
       fdata <- getfdata(sc)
       sc <- compdist(sc, metric = "pearson")
-      sc <- clustexp(sc, clustnr = 30, bootnr = 50, rseed = 12345)
+      sc <- clustexp(sc, clustnr = 30, bootnr = 50, rseed = seed)
       raceID_data <- sc@distances
       raceid_labels <- as.integer(sc@cluster$kpart)
       return(list(labels = raceid_labels, data = raceID_data))
     }
-
   )
 
-  for (alg_name in names(algorithms)) {
-    message("------------------------------------------------")
-    message(paste("Algorithm Running:", alg_name))
-    func <- algorithms[[alg_name]]
+  # Run selected algorithms
+  for (alg_name in algorithms) {
+    if (verbose) {
+      message("------------------------------------------------")
+      message(paste("Running algorithm:", alg_name))
+    }
+
+    func <- algorithm_functions[[alg_name]]
     result <- tryCatch({
       start_time <- Sys.time()
       res <- func(data)
@@ -139,15 +237,19 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
       ari_scores[[alg_name]] <- ari_val
       errors[[alg_name]] <- NA
 
-      message(paste(alg_name, "completed successfully. Time:", runtime, "s"))
-      if (!is.null(true_labels)) message(paste("ARI:", round(ari_val, 4)))
+      if (verbose) {
+        message(paste(alg_name, "completed successfully. Runtime:", runtime, "seconds"))
+        if (!is.null(true_labels)) {
+          message(paste("ARI:", round(ari_val, 4)))
+        }
+      }
+
     }, error = function(e) {
-      message(paste("ERROR:", alg_name, "running:", e$message))
+      if (verbose) {
+        message(paste("ERROR in", alg_name, ":", e$message))
+      }
 
-      clustering_results[[alg_name]] <- list(
-        labels = NA, data = NA, runtime = NA, ARI = NA, error = e$message
-      )
-
+      clustering_results[[alg_name]] <- NA
       embedding_data[[alg_name]] <- NA
       runtimes[[alg_name]] <- NA
       ari_scores[[alg_name]] <- NA
@@ -155,13 +257,15 @@ run_individual_algorithms <- function(data, true_labels = NULL) {
     })
   }
 
-  return(list(
+  # Return results
+  result_list <- list(
     clustering_results = clustering_results,
     ari_scores = ari_scores,
     runtimes = runtimes,
     errors = errors,
     embedding_data = embedding_data
-  ))
+  )
+
+  class(result_list) <- "ScEnsemble_individual_results"
+  return(result_list)
 }
-
-
