@@ -4,9 +4,11 @@
 .httr-oauth
 .DS_Store
 .quarto
-README.Rmd
 ^.*\.Rproj$
 ^\.Rproj\.user$
-README*
 *.Rproj
 .Rproj.user/
+README.Rmd
+README.md
+README*
+Thumbs.db
