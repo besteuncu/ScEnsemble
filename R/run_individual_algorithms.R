@@ -62,43 +62,39 @@
 #' @importFrom stats prcomp kmeans
 #'
 #' @export
-run_individual_algorithms <- function(data,
-                                      true_labels = NULL,
-                                      algorithms = c("SC3", "CIDR", "Seurat", "SIMLR",
-                                                     "TSNE_Kmeans", "Monocle", "RaceID"),
-                                      seed = 42,
-                                      verbose = TRUE,
-                                      n_cores = 1) {
-
-  # Input validation
-  if (!is.matrix(data) && !is.data.frame(data)) {
-    stop("data must be a matrix or data frame")
-  }
-
-  if (is.data.frame(data)) {
-    data <- as.matrix(data)
-  }
-
-  if (!is.numeric(data)) {
-    stop("data must contain numeric values")
-  }
-
-  if (ncol(data) < 2) {
-    stop("data must have at least 2 cells (columns)")
-  }
-
-  if (nrow(data) < 2) {
-    stop("data must have at least 2 genes (rows)")
-  }
-
-  if (!is.null(true_labels) && length(true_labels) != ncol(data)) {
-    stop("Length of true_labels must match number of cells (columns) in data")
+setMethod("run_individual_algorithms", "ScEnsemble", 
+          function(object, 
+                   algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
+                   seed = 42,
+                   verbose = TRUE,
+                   n_cores = 1,
+                   ...) {
+  
+  data <- assay(object@sce, "counts")
+  true_labels <- object@annotation
+  
+  validate_input <- function(object) {
+    if (!is(object, "ScEnsemble")) {
+      stop("object must be a ScEnsemble instance")
+    }
+    
+    if (!"counts" %in% assayNames(object@sce)) {
+      stop("No 'counts' assay found in SCE object")
+    }
+    
+    data <- assay(object@sce, "counts")
+    if (nrow(data) == 0 || ncol(data) == 0) {
+      stop("Empty data matrix")
+    }
+    
+    return(TRUE)
   }
 
   available_algorithms <- c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID")
   if (!all(algorithms %in% available_algorithms)) {
     stop("Invalid algorithm(s) specified. Available algorithms: ", paste(available_algorithms, collapse = ", "))
   }
+
 
   # Set seed for reproducibility
   set.seed(seed)
@@ -163,6 +159,9 @@ run_individual_algorithms <- function(data,
     },
 
     SIMLR = function(data) {
+      if (is(data, "dgCMatrix") || is(data, "Matrix")) {
+        data <- as.matrix(data)
+      }
       k_estimate <- SIMLR_Estimate_Number_of_Clusters(data, NUMC = 2:10, cores.ratio = 0.5)
       best_k1 <- which.min(k_estimate$K1)
       best_k2 <- which.min(k_estimate$K2)
@@ -258,7 +257,7 @@ run_individual_algorithms <- function(data,
   }
 
   # Return results
-  result_list <- list(
+  result_list <- new("IndividualResults",
     clustering_results = clustering_results,
     ari_scores = ari_scores,
     runtimes = runtimes,
@@ -266,6 +265,7 @@ run_individual_algorithms <- function(data,
     embedding_data = embedding_data
   )
 
-  class(result_list) <- "ScEnsemble_individual_results"
-  return(result_list)
+  object@individual_results <- result_list
+  return(object)
 }
+)

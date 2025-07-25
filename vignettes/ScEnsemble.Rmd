@@ -1,0 +1,100 @@
+---
+title: "ScEnsemble package manual"
+author: "Beste Uncu"
+date: "`r Sys.Date()`"
+output:
+    BiocStyle::html_document:
+        toc: true
+vignette: >
+  %\VignetteIndexEntry{ScEnsemble}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r knitr-options, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+Single-cell Ensemble Clustering (`ScEnsemble`) birbirinden farklı scRNA-seq kümeleme algortimalarından hypergraph temelli ensemble kümeleme algoritmasıdır. ScEnsemble birbirinden farklı kümeleme yaklaşımlarının güçlü yanlarını birleştirerek daha tutarlı sonuçlar vermeyi amaçlar. İç değerlendirme kritelerini kullanarak yapılan ağırlıklandırmalar ile daha iyi ayrılmalar ve küme içi kompaktlığın artmasını sağlar. `ScEnsemble` yalnızca kümeleme aracıdır. Veri temizliği ve düzenlenmesi gerekli durumlarda preproces kullanıcılar tarafından yapılması önerilir. 
+`ScEnsemble` algoritmasında örnek olarak çalışmak adına ifade matrisi kullanılacak. Veriseti (`Pollen`) insan beyninin gelişimsel süreçlerinden elde edilen 367 hücrenin FPKM(Fragments Per Kilobase Million) gene ekspresyon seviyelerini göstermektedir. `SingleCellExperiment` formatında hazırlanan verisetinden alınmıştır. The column metadata includes information on anatomical region, sample origin, putative cell types, and alignment-related statistics. Çekilen verisetinde satırlar genleri sütunlar hücreleri göstermektedir.
+
+
+```{r, message=FALSE, warning=FALSE}
+library(cluster)
+library(fpc)
+library(clValid)
+library(clusterCrit)
+library(SingleCellExperiment)
+library(SC3)
+library(scater)
+library(SIMLR)
+library(Seurat)
+library(cidr)
+library(Matrix)
+library(irlba)
+library(cluster)
+library(ggplot2)
+library(igraph)
+library(mclust)
+library(scRNAseq)
+library(Rtsne)
+library(stats)
+library(monocle3)
+library(RaceID)
+library(ScEnsemble)
+
+
+```
+
+```{r}
+
+scensemble<- ScEnsemble(pollen, ann)
+scensemble<- run_individual_algorithms(scensemble)
+scensemble<- calculate_all_validation_indices(scensemble)
+scensemble<- generate_all_hypergraphs(scensemble)
+scensemble<- extract_hypergraph_lists(scensemble)
+scensemble<- ensemble_clustering_algorithms(scensemble)
+scensemble<- analyze_clustering_performance(scensemble)
+
+```
+
+
+Eğer kendi verilerinizi kullanacaksanız ilk olarak `SingleCellExperiment` nesnesi olarak hazırlanmalıdır. Eğer annatationlar belirli ise `colData` altında oluşturulmalıdır. `ScEnsemble` nesnesi olarak oluşturulan yapıda `CreateScEnsemble` fonksiyonu kullanılır ve bundan sonra kullanılan her fonksiyon tek bir S4 nesnesi altında toplanır.
+
+```{r}
+
+library(scRNAseq)
+library(SingleCellExperiment)
+
+Pollen <- PollenGliaData()
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+#sce <- SingleCellExperiment(assays = list(counts = pollen), colData=ann)
+scens <- CreateScEnsemble(Pollen, ann)
+
+```
+
+
+#Run individual algorithms
+
+Birbirinden farklı kümeleme yaklaşımlarına sahip kümeleme algoritmaları tek tek uygulanır. SC3, CIDR, Seurat, SIMLR, t-SNE+k-means, Monocle, RaceID araçlarından herbirinin önişlemden geçirip kendi kümeleme algoritmasına verdiği veriler alınır. Her algoritmanın iç değerlendirme kriterleri tek tek hesaplanır ve elde edilen değerler bir sonraki adımda kullanılmak üzere alınır. 
+
+
+```{r, message=FALSE}
+
+scens <- run_individual_algorithms(scens)
+
+```
+#Calculate all validation indices
+
+Bir önceki adımda `run_individual_algorithms` teker teker çalıştırılan kümeleme algoritmalarının küme etiketleri ve kümeleme adımında  verdikleri veriler ve küme etiketleri alınarak
+
+```{r, message=FALSE}
+
+scens <- calculate_all_validation_indices(scens)
+
+```

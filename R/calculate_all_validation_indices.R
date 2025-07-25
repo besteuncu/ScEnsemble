@@ -39,10 +39,17 @@
 #' @importFrom stats dist
 #'
 #' @export
-calculate_all_validation_indices <- function(clustering_results,
-                                             embedding_data,
-                                             verbose = TRUE) {
+setMethod("calculate_all_validation_indices", "ScEnsemble", 
+          function(object,
+                   clustering_results,
+                   embedding_data,
+                   verbose = TRUE,
+                   ...) {
 
+  clustering_results <- object@individual_results@clustering_results
+  embedding_data     <- object@individual_results@embedding_data
+  
+  
   # Input validation
   if (!is.list(clustering_results) || length(clustering_results) == 0) {
     stop("clustering_results must be a non-empty list")
@@ -51,26 +58,33 @@ calculate_all_validation_indices <- function(clustering_results,
   if (!is.list(embedding_data) || length(embedding_data) == 0) {
     stop("embedding_data must be a non-empty list")
   }
-
-  # Her algoritma için indeksleri hesaplayan iç fonksiyon
+  
+  # Internal function that calculates the indexes for each algorithm
   calculate_indices <- function(data, clustering) {
     if (length(unique(clustering)) < 2) {
       return(list(silhouette = NA, ch = NA, db = NA, dunn = NA))
     }
     data_matrix <- as.matrix(data)
+    
     sil_index <- tryCatch({
       sil <- silhouette(clustering, dist(data_matrix))
       mean(sil[, 3], na.rm = TRUE)
     }, error = function(e) NA)
+    
     ch_index <- tryCatch({
       calinhara(data_matrix, clustering, cn = length(unique(clustering)))
     }, error = function(e) NA)
+    
     db_index <- tryCatch({
-      index.DB(data_matrix, clustering, centrotypes = "centroids")$DB
+      result <- clusterSim::index.DB(data_matrix, clustering, centrotypes = "centroids")
+      db_val <- result$DB
+      return(db_val)
     }, error = function(e) NA)
+    
     dunn_index <- tryCatch({
       dunn(dist(data_matrix), clustering)
     }, error = function(e) NA)
+    
     return(list(
       silhouette = sil_index,
       ch = ch_index,
@@ -121,12 +135,20 @@ calculate_all_validation_indices <- function(clustering_results,
 
   normalized_indices <- normalize_all(validation_indices)
 
-  result_list <- list(
-    validation_indices = validation_indices,
-    normalized_indices = normalized_indices,
-    average_index = normalized_indices$average_index
+  result_list <- new("ValidationResults",
+                     validation_indices = validation_indices,
+                     normalized_indices = normalized_indices,
+                     average_index = normalized_indices$average_index 
   )
+    
 
-  class(result_list) <- "ScEnsemble_validation_results"
-  return(result_list)
+  object@validation_metrics <- result_list
+  return(object)
 }
+)
+
+# Fonksiyonun içindeki tüm değişkenleri listeleyin
+ls(environment(calculate_all_validation_indices))
+
+# Fonksiyonun parent environment'ını kontrol edin
+parent.env(environment(calculate_all_validation_indices))

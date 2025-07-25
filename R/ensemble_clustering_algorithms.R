@@ -231,7 +231,7 @@ ensemble_clustering_algorithms <- function(expression_data,
 
   # Manuel Davies-Bouldin hesaplay??c??
   manual_davies_bouldin <- function(data, clusters) {
-    clusters <- as.numeric(factor(clusters))  # G??venlik i??in bir daha d??zelt
+    clusters <- as.numeric(factor(clusters))  
     unique_clusters <- unique(clusters)
     n_clusters <- length(unique_clusters)
 
