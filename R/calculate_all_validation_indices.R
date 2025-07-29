@@ -28,7 +28,8 @@
 #' @importFrom clusterSim index.DB
 #' @importFrom clValid dunn
 #' @importFrom stats dist
-#'
+#' 
+#' 
 #' @export
 setMethod("calculate_all_validation_indices", "ScEnsemble", 
           function(object,
@@ -113,7 +114,7 @@ setMethod("calculate_all_validation_indices", "ScEnsemble",
               method_normalized[["average"]] <- mean(valid_scores, na.rm = TRUE)
               all_indices_norm[[method]] <- method_normalized
             }
-            
+           
             # Create result object and return
             validation_metrics <- new("ValidationResults",
                                       validation_indices = all_indices,

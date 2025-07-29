@@ -8,7 +8,6 @@
 #' @slot validation_metrics A list of internal validation scores
 #' @slot hypergraphs A list of hypergraph representations
 #' @slot ensemble_results A list of ensemble clustering results
-#' @slot performance_metrics A list of performance evaluations
 #' @export
 
 setClassUnion("numericORNULL", c("numeric", "NULL"))
@@ -20,8 +19,7 @@ setClass("ScEnsemble",
            individual_results = "IndividualResults",
            validation_metrics = "ValidationResults",
            hypergraphs = "list",
-           ensemble_results = "EnsembleResults",
-           performance_metrics = "list"
+           ensemble_results = "EnsembleResults"
          )
 )
 
@@ -47,4 +45,4 @@ setClass("EnsembleResults",
            ensemble_ari = "list",
            ensemble_quality = "list"
          ))
-devtools::test(quiet = TRUE)
+

@@ -119,3 +119,9 @@ The resulting cluster labels represent a sophisticated synthesis that transcends
 scens <- ensemble_clustering(scens)
 
 ```
+
+```{r}
+
+plot_results <- ensemble_clustering(scens)
+
+```
