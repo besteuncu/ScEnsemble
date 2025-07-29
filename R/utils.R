@@ -28,9 +28,10 @@
 #' gracefully and continue processing even if one index fails.
 #'
 #' @importFrom cluster silhouette
-#' @importFrom fpc calinhara dunn
+#' @importFrom fpc calinhara
 #' @importFrom clusterSim index.DB
 #' @importFrom stats dist
+#' @importFrom clusterCrit intCriteria
 #'
 #' @keywords internal
 #' @export
