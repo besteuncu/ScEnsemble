@@ -74,29 +74,22 @@
 #' @seealso \code{\link{run_individual_algorithms}}, \code{\link{generate_all_hypergraphs}}
 #'
 #' @export
-ensemble_clustering_algorithms <- function(expression_data,
-                                           true_labels = NULL,
-                                           H_matrix,
-                                           k = NULL,
-                                           ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
-                                                                "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC")) {
+setMethod("ensemble_clustering", "ScEnsemble", 
+          function(object,
+                   expression_data,
+                   true_labels = NULL,
+                   H_matrix,
+                   k = NULL,
+                   ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
+                                        "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC")) {
 
-  # Input validation
-  if (!is.matrix(expression_data) && !is.data.frame(expression_data)) {
-    stop("expression_data must be a matrix or data frame")
-  }
 
-  if (!is.list(H_matrix)) {
-    stop("H_matrix must be a list containing hypergraph matrices")
-  }
-
-  required_matrices <- c("H", "HH", "H_sil", "HH_sil", "H_ch", "HH_ch",
-                         "H_db", "HH_db", "H_ave", "HH_ave")
-
-  if (!all(required_matrices %in% names(H_matrix))) {
-    stop("H_matrix must contain all required matrices: ", paste(required_matrices, collapse = ", "))
-  }
-
+  expression_data <- as.matrix(assay(object@sce))
+  true_labels <- object@annotation
+  
+  # Retrieve data 
+  H_matrix <- object@hypergraphs
+  
   # Extract matrices from H_matrix
   H <- H_matrix$H
   HH <- H_matrix$HH
@@ -108,6 +101,15 @@ ensemble_clustering_algorithms <- function(expression_data,
   HH_db <- H_matrix$HH_db
   H_ave <- H_matrix$H_ave
   HH_ave <- H_matrix$HH_ave
+  
+  # Input validation
+  if (!is.matrix(expression_data) && !is.data.frame(expression_data)) {
+    stop("expression_data must be a matrix or data frame")
+  }
+
+  if (!is.list(H_matrix)) {
+    stop("H_matrix must be a list containing hypergraph matrices")
+  }
 
   # Validate ensemble methods
   valid_methods <- c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
@@ -120,7 +122,7 @@ ensemble_clustering_algorithms <- function(expression_data,
 
   # K??meleme kalite indekslerini hesaplayan ana fonksiyon
   calculate_quality_indices <- function(data, clusters, method_name = "") {
-    clusters <- as.numeric(factor(clusters))  # Etiketleri d??zelt
+    clusters <- as.numeric(factor(clusters))  
 
     n_clusters <- length(unique(clusters))
     if (n_clusters < 2) {
@@ -139,17 +141,10 @@ ensemble_clustering_algorithms <- function(expression_data,
     db_score         <- calculate_davies_bouldin(data, clusters, method_name)
     dunn_score       <- calculate_dunn(dist_matrix, clusters, method_name)
 
-    # Normalize et (z-score de??il, [0, 1] aras??nda normalize)
-    # Silhouette: [-1, 1] ??? [0, 1]
+    
     silhouette_norm <- if (!is.na(silhouette_score)) (silhouette_score + 1) / 2 else NA
-
-    # Davies-Bouldin: k??????k daha iyi ??? ters ??evrilerek normalize edilir
     db_norm <- if (!is.na(db_score)) 1 / (1 + db_score) else NA
-
-    # Calinski-Harabasz: b??y??k daha iyi ??? min-max yoksa log ??l??e??iyle normalize edilebilir
     ch_norm <- if (!is.na(ch_score)) log(1 + ch_score) / (1 + log(1 + ch_score)) else NA
-
-    # Dunn: b??y??k daha iyi ??? normalize
     dunn_norm <- if (!is.na(dunn_score)) dunn_score / (1 + dunn_score) else NA
 
     list(
@@ -254,11 +249,11 @@ ensemble_clustering_algorithms <- function(expression_data,
   }
 
 
-  # Sonu??lar?? saklayacak liste
+
   results <- list()
   results$ensemble_clusters <- list()
   results$ensemble_ari <- list()
-  results$quality_indices <- list()  # Yeni eklenen k??s??m
+  results$ensemble_quality <- list()  
 
   # ============================================================
   # B??L??M 4: ENSEMBLE K??MELEME ALGORITMALARI
@@ -308,7 +303,7 @@ ensemble_clustering_algorithms <- function(expression_data,
     }
 
     # CSPA algoritmas??n?? farkl?? hypergraph matrislerine uygula
-    results$ensemble_clusters$cspa <- list(
+    results$ensemble_clusters$cspa_hc <- list(
       standard = cspa_ensemble(HH),
       silhouette = cspa_ensemble(HH_sil),
       ch = cspa_ensemble(HH_ch),
@@ -317,7 +312,7 @@ ensemble_clustering_algorithms <- function(expression_data,
     )
 
     # Kalite indekslerini hesapla
-    results$quality_indices$cspa <- list(
+    results$quality_indices$cspa_hc <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa$standard, "CSPA_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa$silhouette, "CSPA_silhouette"),
       ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa$ch, "CSPA_ch"),
@@ -890,7 +885,16 @@ ensemble_clustering_algorithms <- function(expression_data,
     }
   }
 
-  return(results)
+  ensemble_results <- new("EnsembleResults",
+                                ensemble_clusters = results$ensemble_clusters,
+                                ensemble_ari = results$ensemble_ari,
+                                ensemble_quality = results$quality_indices)
+  
+  
+  object@ensemble_results <- ensemble_results
+  
+  
+  return(object)
 }
-
+)
 

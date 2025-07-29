@@ -35,8 +35,38 @@ setGeneric("run_individual_algorithms",
 #' @export
 setGeneric("calculate_all_validation_indices", 
            function(object,
-                    clustering_results,
-                    embedding_data,
                     verbose = TRUE,
                     ...) 
              standardGeneric("calculate_all_validation_indices"))
+
+#' @title Generate Hypergraphs
+#' @description Generate hypergraph representations from clustering results
+#' 
+#' @param object ScEnsemble object with completed validation indices
+#' @param algorithms Character vector of algorithms to include
+#' @param ... Additional arguments
+#' 
+#' @return ScEnsemble object with hypergraphs slot filled
+#' @export
+setGeneric("generate_all_hypergraphs", function(object, ...) standardGeneric("generate_all_hypergraphs"))
+
+#' @title Ensemble Clustering Algorithms
+#' @description Apply ensemble clustering methods
+#' 
+#' @param object ScEnsemble object with completed hypergraph lists
+#' @param k Number of clusters (if NULL, will be estimated)
+#' @param ensemble_methods Character vector of ensemble methods to apply
+#' @param ... Additional arguments
+#' 
+#' @return ScEnsemble object with ensemble_results slot filled
+#' @export
+setGeneric("ensemble_clustering", 
+           function(object,
+                    expression_data,
+                    true_labels = NULL,
+                    H_matrix,
+                    k = NULL,
+                    ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
+                                         "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+                    ...) 
+             standardGeneric("ensemble_clustering"))

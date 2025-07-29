@@ -20,8 +20,7 @@ setClass("ScEnsemble",
            individual_results = "IndividualResults",
            validation_metrics = "ValidationResults",
            hypergraphs = "list",
-           hypergraph_lists = "list",
-           ensemble_results = "list",
+           ensemble_results = "EnsembleResults",
            performance_metrics = "list"
          )
 )
@@ -39,6 +38,13 @@ setClass("IndividualResults",
 setClass("ValidationResults",
          slots = list(
            validation_indices = "list",
-           normalized_indices = "list",
-           average_index = "numeric"
+           normalized_indices = "list"
          ))
+
+setClass("EnsembleResults",
+         slots = list(
+           ensemble_clusters = "list",
+           ensemble_ari = "list",
+           ensemble_quality = "list"
+         ))
+devtools::test(quiet = TRUE)

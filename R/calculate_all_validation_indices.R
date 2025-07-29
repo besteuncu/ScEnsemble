@@ -1,15 +1,13 @@
-#' Calculate All Validation Indices
+#' Calculate All Validation Indices - Refactored Version
 #'
 #' This function calculates multiple clustering validation indices for each algorithm's
-#' clustering results and returns both raw and normalized scores.
+#' clustering results and returns both raw and normalized scores using a simplified,
+#' more robust approach.
 #'
-#' @param clustering_results A named list containing clustering labels for each algorithm.
-#'   Each element should be a vector of cluster assignments.
-#' @param embedding_data A named list containing embedding or distance matrices for each algorithm.
-#'   Each element should be a matrix or data frame with the same number of rows as clustering labels.
+#' @param object A ScEnsemble object containing clustering results and embedding data
 #' @param verbose Logical indicating whether to print progress messages. Default is TRUE.
 #'
-#' @return A list containing:
+#' @return A ScEnsemble object with updated validation_metrics slot containing:
 #' \describe{
 #'   \item{validation_indices}{Named list of raw validation indices for each algorithm}
 #'   \item{normalized_indices}{Named list of normalized validation indices}
@@ -25,13 +23,6 @@
 #'   \item \strong{Dunn}: Ratio of minimum inter-cluster distance to maximum intra-cluster distance.
 #' }
 #'
-#' @examples
-#' # Calculate validation indices
-#' validation_results <- calculate_all_validation_indices(
-#'   clustering_results = clustering_results,
-#'   embedding_data = embedding_data
-#' )
-#'
 #' @importFrom cluster silhouette
 #' @importFrom fpc calinhara
 #' @importFrom clusterSim index.DB
@@ -41,114 +32,99 @@
 #' @export
 setMethod("calculate_all_validation_indices", "ScEnsemble", 
           function(object,
-                   clustering_results,
-                   embedding_data,
                    verbose = TRUE,
                    ...) {
+            
+            # Retrieve data 
+            clustering_results <- object@individual_results@clustering_results
+            embedding_data <- object@individual_results@embedding_data
+            
+            if (length(clustering_results) == 0) {
+              stop("clustering_results must be a non-empty list")
+            }
+            
+            if (verbose) {
+              cat("Starting validation index calculations for", length(clustering_results), "algorithms\n")
+            }
+            
+            # Prepare result containers
+            all_indices <- list()          # For raw metric values
+            all_indices_norm <- list()     # For normalized metric values
+            avg_scores <- numeric()        # For average scores
+            
+            # Temporarily store all raw values for global normalization
+            all_raw_values <- list(
+              silhouette = numeric(),
+              ch = numeric(),
+              db = numeric(),
+              dunn = numeric()
+            )
+            
+            # Calculate raw metrics for each algorithm
+            for (method in names(clustering_results)) {
+              if (verbose) {
+                cat(sprintf("Calculating raw indices for method: %s\n", method))
+              }
+              
+              clusters <- clustering_results[[method]]
+              embed <- embedding_data[[method]]
+              
+              if (is.null(embed)) {
+                if (verbose) {
+                  cat(sprintf("Warning: No embedding data found for method: %s. Skipping.\n", method))
+                }
+                next
+              }
+              
+              raw_metrics <- calculate_single_algorithm_metrics(embed, clusters, method, verbose)
+              all_indices[[method]] <- raw_metrics
+              
+              for (metric_name in names(raw_metrics)) {
+                if (!is.na(raw_metrics[[metric_name]])) {
+                  all_raw_values[[metric_name]] <- c(all_raw_values[[metric_name]], raw_metrics[[metric_name]])
+                }
+              }
+            }
+            
+            # Global normalization
+            if (verbose) {
+              cat("Performing global normalization...\n")
+            }
+            
+            normalized_metrics <- perform_global_normalization(all_raw_values, verbose)
+            
+            # Assign normalized values back to each method
+            for (method in names(all_indices)) {
+              method_normalized <- list()
+              raw_values <- all_indices[[method]]
+              
+              for (metric_name in names(raw_values)) {
+                raw_val <- raw_values[[metric_name]]
+                if (!is.na(raw_val)) {
+                  method_normalized[[metric_name]] <- calculate_normalized_value(
+                    raw_val, metric_name, normalized_metrics
+                  )
+                } else {
+                  method_normalized[[metric_name]] <- 0  # Assign 0 to NA values
+                }
+              }
+              
+              valid_scores <- unlist(method_normalized)
+              method_normalized[["average"]] <- mean(valid_scores, na.rm = TRUE)
+              all_indices_norm[[method]] <- method_normalized
+            }
+            
+            # Create result object and return
+            validation_metrics <- new("ValidationResults",
+                                      validation_indices = all_indices,
+                                      normalized_indices = all_indices_norm)
+            
+            object@validation_metrics <- validation_metrics
+            
+            if (verbose) {
+              cat("Validation index calculation completed successfully!\n")
+            }
+            
+            return(object)
+          })
 
-  clustering_results <- object@individual_results@clustering_results
-  embedding_data     <- object@individual_results@embedding_data
-  
-  
-  # Input validation
-  if (!is.list(clustering_results) || length(clustering_results) == 0) {
-    stop("clustering_results must be a non-empty list")
-  }
-
-  if (!is.list(embedding_data) || length(embedding_data) == 0) {
-    stop("embedding_data must be a non-empty list")
-  }
-  
-  # Internal function that calculates the indexes for each algorithm
-  calculate_indices <- function(data, clustering) {
-    if (length(unique(clustering)) < 2) {
-      return(list(silhouette = NA, ch = NA, db = NA, dunn = NA))
-    }
-    data_matrix <- as.matrix(data)
-    
-    sil_index <- tryCatch({
-      sil <- silhouette(clustering, dist(data_matrix))
-      mean(sil[, 3], na.rm = TRUE)
-    }, error = function(e) NA)
-    
-    ch_index <- tryCatch({
-      calinhara(data_matrix, clustering, cn = length(unique(clustering)))
-    }, error = function(e) NA)
-    
-    db_index <- tryCatch({
-      result <- clusterSim::index.DB(data_matrix, clustering, centrotypes = "centroids")
-      db_val <- result$DB
-      return(db_val)
-    }, error = function(e) NA)
-    
-    dunn_index <- tryCatch({
-      dunn(dist(data_matrix), clustering)
-    }, error = function(e) NA)
-    
-    return(list(
-      silhouette = sil_index,
-      ch = ch_index,
-      db = db_index,
-      dunn = dunn_index
-    ))
-  }
-
-  # Function to normalize and calculate average scores
-  normalize_all <- function(indices_list) {
-    extract_metric <- function(metric) sapply(indices_list, function(x) x[[metric]])
-    sil_values  <- extract_metric("silhouette")
-    ch_values   <- extract_metric("ch")
-    db_values   <- extract_metric("db")
-    dunn_values <- extract_metric("dunn")
-
-    replace_na <- function(x) ifelse(is.na(x), 0, x)
-
-    sil_norm  <- replace_na((sil_values + 1) / 2)
-    ch_norm   <- replace_na(ch_values / sum(ch_values, na.rm = TRUE))
-    inv_db    <- replace_na(1 / db_values)
-    db_norm   <- inv_db / sum(inv_db, na.rm = TRUE)
-    dunn_norm <- replace_na(dunn_values / sum(dunn_values, na.rm = TRUE))
-
-    # Average score (average of 4 normalized indices)
-    avg_index <- rowMeans(cbind(sil_norm, ch_norm, db_norm, dunn_norm), na.rm = TRUE)
-
-    return(list(
-      silhouette = sil_norm,
-      ch = ch_norm,
-      db = db_norm,
-      dunn = dunn_norm,
-      average_index = avg_index
-    ))
-  }
-
-  algorithm_names <- intersect(names(clustering_results), names(embedding_data))
-  validation_indices <- list()
-
-  for (alg in algorithm_names) {
-    if (verbose) {
-      message(paste("Calculating indices for:", alg))
-    }
-    labels <- clustering_results[[alg]]
-    data   <- embedding_data[[alg]]
-    validation_indices[[alg]] <- calculate_indices(data, labels)
-  }
-
-  normalized_indices <- normalize_all(validation_indices)
-
-  result_list <- new("ValidationResults",
-                     validation_indices = validation_indices,
-                     normalized_indices = normalized_indices,
-                     average_index = normalized_indices$average_index 
-  )
-    
-
-  object@validation_metrics <- result_list
-  return(object)
-}
-)
-
-# Fonksiyonun içindeki tüm değişkenleri listeleyin
-ls(environment(calculate_all_validation_indices))
-
-# Fonksiyonun parent environment'ını kontrol edin
-parent.env(environment(calculate_all_validation_indices))

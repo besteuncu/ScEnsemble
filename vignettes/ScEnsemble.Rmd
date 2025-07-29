@@ -20,8 +20,9 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-Single-cell Ensemble Clustering (`ScEnsemble`) birbirinden farklı scRNA-seq kümeleme algortimalarından hypergraph temelli ensemble kümeleme algoritmasıdır. ScEnsemble birbirinden farklı kümeleme yaklaşımlarının güçlü yanlarını birleştirerek daha tutarlı sonuçlar vermeyi amaçlar. İç değerlendirme kritelerini kullanarak yapılan ağırlıklandırmalar ile daha iyi ayrılmalar ve küme içi kompaktlığın artmasını sağlar. `ScEnsemble` yalnızca kümeleme aracıdır. Veri temizliği ve düzenlenmesi gerekli durumlarda preproces kullanıcılar tarafından yapılması önerilir. 
-`ScEnsemble` algoritmasında örnek olarak çalışmak adına ifade matrisi kullanılacak. Veriseti (`Pollen`) insan beyninin gelişimsel süreçlerinden elde edilen 367 hücrenin FPKM(Fragments Per Kilobase Million) gene ekspresyon seviyelerini göstermektedir. `SingleCellExperiment` formatında hazırlanan verisetinden alınmıştır. The column metadata includes information on anatomical region, sample origin, putative cell types, and alignment-related statistics. Çekilen verisetinde satırlar genleri sütunlar hücreleri göstermektedir.
+Single-cell Ensemble Clustering (`ScEnsemble`) is a hypergraph-based ensemble clustering algorithm that integrates diverse scRNA-seq clustering approaches. The primary objective of ScEnsemble is to deliver more consistent and robust results by combining the strengths of different clustering methodologies. Through weightings based on internal evaluation criteria, the algorithm enhances cluster separation and increases intra-cluster compactness. It is important to note that `ScEnsemble` functions solely as a clustering tool. When necessary, data cleaning and preprocessing should be performed by users prior to applying the algorithm.
+
+For demonstration purposes, this `ScEnsemble` algorithm tutorial utilizes an expression matrix. The dataset (`Pollen`) represents FPKM (Fragments Per Kilobase Million) gene expression levels from 367 cells obtained during human brain developmental processes. The dataset is prepared in `SingleCellExperiment` format and sourced from the corresponding repository. The column metadata contains comprehensive information regarding anatomical regions, sample origins, putative cell types, and alignment-related statistics. In the extracted dataset, rows represent genes while columns represent individual cells.
 
 
 ```{r, message=FALSE, warning=FALSE}
@@ -51,20 +52,8 @@ library(ScEnsemble)
 
 ```
 
-```{r}
 
-scensemble<- ScEnsemble(pollen, ann)
-scensemble<- run_individual_algorithms(scensemble)
-scensemble<- calculate_all_validation_indices(scensemble)
-scensemble<- generate_all_hypergraphs(scensemble)
-scensemble<- extract_hypergraph_lists(scensemble)
-scensemble<- ensemble_clustering_algorithms(scensemble)
-scensemble<- analyze_clustering_performance(scensemble)
-
-```
-
-
-Eğer kendi verilerinizi kullanacaksanız ilk olarak `SingleCellExperiment` nesnesi olarak hazırlanmalıdır. Eğer annatationlar belirli ise `colData` altında oluşturulmalıdır. `ScEnsemble` nesnesi olarak oluşturulan yapıda `CreateScEnsemble` fonksiyonu kullanılır ve bundan sonra kullanılan her fonksiyon tek bir S4 nesnesi altında toplanır.
+If you intend to use your own datasets, they must first be prepared as `SingleCellExperiment` objects. When annotations are available, they should be incorporated under `colData`. The ScEnsemble framework utilizes the `CreateScEnsemble` function to generate the primary object structure, and all subsequent functions operate within this unified S4 object architecture.
 
 ```{r}
 
@@ -74,27 +63,59 @@ library(SingleCellExperiment)
 Pollen <- PollenGliaData()
 ann <- colData(Pollen)[["Inferred Cell Type"]]
 #sce <- SingleCellExperiment(assays = list(counts = pollen), colData=ann)
-scens <- CreateScEnsemble(Pollen, ann)
+scens <- CreateScEnsemble(Pollen,ann)
 
 ```
 
 
-#Run individual algorithms
+# Run Individual Algorithms
 
-Birbirinden farklı kümeleme yaklaşımlarına sahip kümeleme algoritmaları tek tek uygulanır. SC3, CIDR, Seurat, SIMLR, t-SNE+k-means, Monocle, RaceID araçlarından herbirinin önişlemden geçirip kendi kümeleme algoritmasına verdiği veriler alınır. Her algoritmanın iç değerlendirme kriterleri tek tek hesaplanır ve elde edilen değerler bir sonraki adımda kullanılmak üzere alınır. 
+Clustering algorithms with distinct methodological approaches are applied individually to the dataset. The preprocessing steps and clustering procedures from SC3, CIDR, Seurat, SIMLR, t-SNE+k-means, Monocle, and RaceID tools are executed sequentially. Each algorithm processes the data according to its specific preprocessing requirements before applying its clustering methodology. Internal validation criteria are calculated individually for each algorithm, and the resulting values are stored for utilization in subsequent ensemble steps.
 
 
-```{r, message=FALSE}
+```{r,message=FALSE, warning=FALSE}
 
 scens <- run_individual_algorithms(scens)
 
 ```
-#Calculate all validation indices
+# Calculate All Validation Indices
 
-Bir önceki adımda `run_individual_algorithms` teker teker çalıştırılan kümeleme algoritmalarının küme etiketleri ve kümeleme adımında  verdikleri veriler ve küme etiketleri alınarak
+Following the execution of individual clustering algorithms through `run_individual_algorithms`, this step computes comprehensive validation metrics using the cluster labels and processed data from each algorithm. The validation indices including `Silhouette`, `Calinski-Harabasz`, `Davies-Bouldin`, and `Dunn` are calculated using the embedding data and clustering results from each method. Each index is normalized according to its specific characteristics to ensure comparability across different scales. Additionally, an average index value is computed by taking the mean of all individual validation indices, providing a comprehensive performance measure for each clustering approach.
 
-```{r, message=FALSE}
+```{r}
 
 scens <- calculate_all_validation_indices(scens)
+
+```
+
+# Generate All Hypergraphs
+
+This step represents a fundamental methodological innovation that distinguishes ScEnsemble from conventional ensemble clustering approaches. While traditional ensemble methods typically treat all clustering algorithms equally or apply simplistic voting schemes, ScEnsemble introduces a sophisticated performance-based weighting system through hypergraph construction.
+
+The process begins by converting clustering labels from each algorithm into binary membership matrices, transforming discrete cluster assignments into binary representations suitable for mathematical manipulation. The critical innovation lies in the subsequent weighting procedure: rather than assuming equal contribution from all algorithms, each binary membership matrix is weighted according to its corresponding clustering method's demonstrated performance using internal validation indices.
+
+This adaptive weighting mechanism ensures that algorithms demonstrating superior clustering quality—as measured by normalized `Silhouette`, `Calinski-Harabasz`, `Davies-Bouldin`, `Dunn`, and `Average` indices—exert proportionally greater influence on the final ensemble result. This approach addresses a fundamental limitation of traditional ensemble methods: the assumption that all constituent algorithms contribute equally valuable information, regardless of their actual performance on the specific dataset.
+
+The hypergraph structure provides an elegant mathematical framework for incorporating these performance-weighted contributions, enabling more nuanced consensus formation compared to simple majority voting or equal-weight averaging approaches. An unweighted hypergraph is also maintained as a baseline comparison, allowing for empirical evaluation of the performance gains achieved through the proposed weighting scheme.
+
+```{r}
+
+scens <- generate_all_hypergraphs(scens)
+
+```
+
+# Ensemble Clustering
+
+This final step represents the culmination of ScEnsemble's innovative methodology, where the definitive cluster assignments emerge through a novel integration of performance-weighted hypergraphs. Unlike conventional ensemble approaches that rely on simple consensus mechanisms, this phase leverages the sophisticated weighting framework established in the previous step to achieve superior clustering outcomes.
+
+The ensemble process operates on the weighted matrices derived from the performance-based hypergraph construction, representing a paradigm shift from traditional equal-weight ensemble methods. The key innovation lies in how different clustering perspectives are integrated: rather than treating all algorithmic contributions as equivalent, the system dynamically prioritizes algorithms that demonstrate superior performance on the specific dataset characteristics.
+
+Three distinct consensus approaches are employed to extract final clusters from the weighted hypergraph structures: CSPA (Cluster-based Similarity Partitioning Algorithm), MCLA (Meta-CLustering Algorithm), and HGSC (HyperGraph-based Spectral Clustering). Each method processes the performance-weighted information differently, providing complementary perspectives on the optimal cluster structure. This multi-consensus approach ensures robustness while capitalizing on the adaptive weighting system's ability to emphasize high-performing algorithms.
+
+The resulting cluster labels represent a sophisticated synthesis that transcends simple algorithmic averaging. By incorporating performance-based weights into the consensus formation process, ScEnsemble produces clustering solutions that reflect the collective intelligence of multiple algorithms while automatically adapting to dataset-specific characteristics. This adaptive ensemble strategy addresses fundamental limitations of traditional consensus clustering and represents a significant methodological advancement in single-cell clustering analysis.
+
+```{r}
+
+scens <- ensemble_clustering(scens)
 
 ```
