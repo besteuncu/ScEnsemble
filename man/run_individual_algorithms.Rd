@@ -5,7 +5,14 @@
 \alias{run_individual_algorithms,ScEnsemble-method}
 \title{Run Individual Clustering Algorithms}
 \usage{
-run_individual_algorithms(object, ...)
+run_individual_algorithms(
+  object,
+  algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
+  seed = 42,
+  verbose = TRUE,
+  n_cores = 1,
+  ...
+)
 
 \S4method{run_individual_algorithms}{ScEnsemble}(
   object,
@@ -19,8 +26,6 @@ run_individual_algorithms(object, ...)
 \arguments{
 \item{object}{ScEnsemble object}
 
-\item{...}{Additional arguments}
-
 \item{algorithms}{Character vector specifying which algorithms to run.
 Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID").}
 
@@ -30,6 +35,8 @@ Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID
 
 \item{n_cores}{Integer specifying number of cores to use for parallel processing where applicable.
 Default is 1.}
+
+\item{...}{Additional arguments}
 
 \item{data}{A numeric matrix or data frame containing single-cell expression data.
 Rows represent genes and columns represent cells.}
@@ -68,19 +75,4 @@ The function supports the following clustering algorithms:
 \item Monocle: Trajectory-based clustering
 \item RaceID: Rare Cell Identification
 }
-}
-\examples{
-# Load example data
-data(example_scdata)
-
-# Run all algorithms
-results <- run_individual_algorithms(example_scdata)
-
-# Run specific algorithms with true labels
-results <- run_individual_algorithms(
-  data = example_scdata,
-  true_labels = example_labels,
-  algorithms = c("SC3", "Seurat", "SIMLR")
-)
-
 }

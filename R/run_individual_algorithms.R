@@ -37,19 +37,6 @@
 #'   \item RaceID: Rare Cell Identification
 #' }
 #'
-#' @examples
-#' # Load example data
-#' data(example_scdata)
-#'
-#' # Run all algorithms
-#' results <- run_individual_algorithms(example_scdata)
-#'
-#' # Run specific algorithms with true labels
-#' results <- run_individual_algorithms(
-#'   data = example_scdata,
-#'   true_labels = example_labels,
-#'   algorithms = c("SC3", "Seurat", "SIMLR")
-#' )
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment rowData colData
 #' @importFrom SC3 sc3_estimate_k sc3
@@ -62,6 +49,8 @@
 #' @importFrom RaceID SCseq filterdata getfdata compdist clustexp
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom stats prcomp kmeans
+#' @importFrom methods is new
+#' @importFrom SummarizedExperiment assay assayNames rowData<-
 #'
 #' @export
 setMethod("run_individual_algorithms", "ScEnsemble", 

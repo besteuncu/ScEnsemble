@@ -42,28 +42,6 @@
 #'   \item Dunn index
 #' }
 #'
-#' @examples
-#' \dontrun{
-#' # Generate example data
-#' set.seed(123)
-#' expression_data <- matrix(rnorm(1000), nrow = 100, ncol = 10)
-#' true_labels <- sample(1:3, 100, replace = TRUE)
-#'
-#' # Generate hypergraphs (assuming previous functions are available)
-#' H_matrix <- generate_all_hypergraphs(expression_data, clustering_results)
-#'
-#' # Run ensemble clustering
-#' results <- ensemble_clustering_algorithms(
-#'   expression_data = expression_data,
-#'   true_labels = true_labels,
-#'   H_matrix = H_matrix,
-#'   ensemble_methods = c("CSPA_Hc", "MCLA_Hc", "HGSC")
-#' )
-#'
-#' # View results
-#' print(results$ensemble_clusters)
-#' print(results$ensemble_ari)
-#' }
 #'
 #' @importFrom cluster silhouette
 #' @importFrom fpc cluster.stats
@@ -71,6 +49,9 @@
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom stats kmeans hclust cutree dist
 #' @importFrom utils head
+#' @importFrom methods new
+#' @importFrom SummarizedExperiment assay
+#' @importFrom stats as.dist
 #'
 #'
 #' @export

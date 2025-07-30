@@ -5,6 +5,7 @@
 #' @param sce A SingleCellExperiment object
 #' @param annotation A character vector of true labels (optional)
 #' 
+#' @importFrom methods is new
 #' @import scRNAseq
 #'
 #' @return A ScEnsemble S4 object

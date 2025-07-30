@@ -6,16 +6,16 @@
 \alias{calculate_all_validation_indices,ScEnsemble-method}
 \title{Calculate Validation Indices}
 \usage{
-calculate_all_validation_indices(object, ...)
+calculate_all_validation_indices(object, verbose = TRUE, ...)
 
 \S4method{calculate_all_validation_indices}{ScEnsemble}(object, verbose = TRUE, ...)
 }
 \arguments{
 \item{object}{A ScEnsemble object containing clustering results and embedding data}
 
-\item{...}{Additional arguments}
-
 \item{verbose}{Logical indicating whether to print progress messages. Default is TRUE.}
+
+\item{...}{Additional arguments}
 }
 \value{
 ScEnsemble object with validation_indices slot filled

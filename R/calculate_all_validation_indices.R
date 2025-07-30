@@ -31,6 +31,7 @@
 #' @importFrom clusterSim index.DB
 #' @importFrom clValid dunn
 #' @importFrom stats dist
+#' @importFrom methods new
 #' 
 #' 
 #' @export

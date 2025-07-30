@@ -16,7 +16,11 @@
 #' @examples
 #' data(Pollen)
 #' dim(Pollen)
+#' \dontrun{
+#' # colData function requires SummarizedExperiment to be loaded
+#' library(SummarizedExperiment)
 #' table(colData(Pollen)$"Inferred Cell Type")
+#' }
 "Pollen"
 
 #' Cell type annotations for Pollen data

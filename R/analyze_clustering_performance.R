@@ -78,15 +78,15 @@
 #' }
 #'
 #' @import ggplot2
-#' @importFrom dplyr select filter mutate group_by summarise arrange bind_rows
+#' @importFrom dplyr select filter mutate group_by summarise arrange bind_rows across desc
 #' @import tidyr
 #' @importFrom gridExtra grid.arrange
 #' @import RColorBrewer
 #' @import viridis
 #' @import corrplot
 #' @import ggalluvial
-#' @importFrom grDevices png dev.off
-#' @importFrom stats cor
+#' @importFrom grDevices png dev.off pdf
+#' @importFrom stats cor complete.cases reorder
 #' @importFrom utils head
 #'
 #' @export

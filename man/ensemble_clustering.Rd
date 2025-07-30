@@ -5,7 +5,15 @@
 \alias{ensemble_clustering,ScEnsemble-method}
 \title{Ensemble Clustering Algorithms}
 \usage{
-ensemble_clustering(object, ...)
+ensemble_clustering(
+  object,
+  expression_data,
+  true_labels = NULL,
+  H_matrix,
+  k = NULL,
+  ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
+    "MCLA_Louvain", "MCLA_Leiden", "HGSC")
+)
 
 \S4method{ensemble_clustering}{ScEnsemble}(
   object,
@@ -19,8 +27,6 @@ ensemble_clustering(object, ...)
 }
 \arguments{
 \item{object}{ScEnsemble object with completed hypergraph lists}
-
-\item{...}{Additional arguments}
 
 \item{expression_data}{A matrix or data frame containing the gene expression data.
 Rows represent cells and columns represent genes.}
@@ -38,6 +44,8 @@ If NULL, optimal k will be estimated automatically.}
 \item{ensemble_methods}{Character vector specifying which ensemble methods to use.
 Options include: "CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
 "MCLA_Louvain", "MCLA_Leiden", "HGSC".}
+
+\item{...}{Additional arguments}
 }
 \value{
 ScEnsemble object with ensemble_results slot filled
@@ -71,28 +79,4 @@ Quality indices calculated include:
 \item Davies-Bouldin index
 \item Dunn index
 }
-}
-\examples{
-\dontrun{
-# Generate example data
-set.seed(123)
-expression_data <- matrix(rnorm(1000), nrow = 100, ncol = 10)
-true_labels <- sample(1:3, 100, replace = TRUE)
-
-# Generate hypergraphs (assuming previous functions are available)
-H_matrix <- generate_all_hypergraphs(expression_data, clustering_results)
-
-# Run ensemble clustering
-results <- ensemble_clustering_algorithms(
-  expression_data = expression_data,
-  true_labels = true_labels,
-  H_matrix = H_matrix,
-  ensemble_methods = c("CSPA_Hc", "MCLA_Hc", "HGSC")
-)
-
-# View results
-print(results$ensemble_clusters)
-print(results$ensemble_ari)
-}
-
 }

@@ -15,7 +15,14 @@
 #' 
 #' @return ScEnsemble object with individual_results slot filled
 #' @export
-setGeneric("run_individual_algorithms", function(object, ...) standardGeneric("run_individual_algorithms"))
+setGeneric("run_individual_algorithms", 
+           function(object, 
+                    algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
+                    seed = 42,
+                    verbose = TRUE,
+                    n_cores = 1,
+                    ...)
+             standardGeneric("run_individual_algorithms"))
 
 #' @rdname calculate_all_validation_indices
 #' 
@@ -28,7 +35,11 @@ setGeneric("run_individual_algorithms", function(object, ...) standardGeneric("r
 #' 
 #' @return ScEnsemble object with validation_indices slot filled
 #' @export
-setGeneric("calculate_all_validation_indices", function(object, ...) standardGeneric("calculate_all_validation_indices"))
+setGeneric("calculate_all_validation_indices", 
+           function(object,
+                    verbose = TRUE,
+                    ...)
+             standardGeneric("calculate_all_validation_indices"))
 
 #' @rdname generate_all_hypergraphs
 #' 
@@ -41,7 +52,9 @@ setGeneric("calculate_all_validation_indices", function(object, ...) standardGen
 #' 
 #' @return ScEnsemble object with hypergraphs slot filled
 #' @export
-setGeneric("generate_all_hypergraphs", function(object, ...) standardGeneric("generate_all_hypergraphs"))
+setGeneric("generate_all_hypergraphs", 
+           function(object, verbose = TRUE)
+             standardGeneric("generate_all_hypergraphs"))
 
 #' @rdname ensemble_clustering
 #' 
@@ -55,4 +68,12 @@ setGeneric("generate_all_hypergraphs", function(object, ...) standardGeneric("ge
 #' 
 #' @return ScEnsemble object with ensemble_results slot filled
 #' @export
-setGeneric("ensemble_clustering", function(object, ...) standardGeneric("ensemble_clustering"))
+setGeneric("ensemble_clustering", 
+           function(object,
+                    expression_data,
+                    true_labels = NULL,
+                    H_matrix,
+                    k = NULL,
+                    ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
+                                         "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"))
+             standardGeneric("ensemble_clustering"))

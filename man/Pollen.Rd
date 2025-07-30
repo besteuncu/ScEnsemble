@@ -25,7 +25,11 @@ This dataset contains expression data for multiple cell types in pollen developm
 \examples{
 data(Pollen)
 dim(Pollen)
+\dontrun{
+# colData function requires SummarizedExperiment to be loaded
+library(SummarizedExperiment)
 table(colData(Pollen)$"Inferred Cell Type")
+}
 }
 \references{
 Li et al. (2017). Single-cell transcriptomes reveal characteristic features
