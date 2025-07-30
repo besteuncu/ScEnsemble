@@ -53,30 +53,7 @@
 #'   \item Dunn: Higher values indicate better clustering
 #' }
 #'
-#' @examples
-#' \dontrun{
-#' # Example with mock data structure
-#' ensemble_results <- list(
-#'   quality_indices = list(
-#'     cspa = list(
-#'       standard = list(silhouette = 0.57, ch = 464.7, db = 0.74, dunn = 0.2),
-#'       silhouette = list(silhouette = 0.61, ch = 596.3, db = 0.71, dunn = 0.24)
-#'     )
-#'   )
-#' )
-#'
-#' individual_results <- list(
-#'   validation_indices = list(
-#'     SC3 = list(silhouette = 0.657, ch = 715.4, db = 0.67, dunn = 0.25)
-#'   )
-#' )
-#'
-#' results <- analyze_clustering_performance(
-#'   ensemble_results = ensemble_results,
-#'   individual_results = individual_results
-#' )
-#' }
-#'
+
 #' @import ggplot2
 #' @importFrom dplyr select filter mutate group_by summarise arrange bind_rows across desc
 #' @import tidyr

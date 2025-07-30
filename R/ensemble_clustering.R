@@ -101,7 +101,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
     stop("Invalid ensemble methods: ", paste(invalid_methods, collapse = ", "))
   }
 
-  # K??meleme kalite indekslerini hesaplayan ana fonksiyon
+  # Main function that calculates clustering quality indices
   calculate_quality_indices <- function(data, clusters, method_name = "") {
     clusters <- as.numeric(factor(clusters))  
 
@@ -116,7 +116,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
 
     dist_matrix <- prepare_distance_matrix(data)
 
-    # Ham skorlar?? hesapla
+    # Calculate raw scores
     silhouette_score <- calculate_silhouette(dist_matrix, clusters, method_name)
     ch_score         <- calculate_calinski_harabasz(dist_matrix, clusters, method_name)
     db_score         <- calculate_davies_bouldin(data, clusters, method_name)
@@ -136,26 +136,26 @@ setMethod("ensemble_clustering", "ScEnsemble",
   }
 
   prepare_distance_matrix <- function(data) {
-    # E??er zaten dist objesi ise do??rudan d??nd??r
+    # If it is already a dist object, return it directly
     if (inherits(data, "dist")) return(data)
 
-    # E??er kare matrisse (similarity veya distance olabilir)
+    # If it is a square matrix (can be similarity or distance)
     if (is.matrix(data) && nrow(data) == ncol(data)) {
       diagonal_mean <- mean(diag(data), na.rm = TRUE)
 
-      # Diagonal ~1 ise bu similarity matrisidir (??rn. korelasyon, cosine)
+      # If diagonal is ~1, this is the similarity matrix (eg correlation, cosine)
       if (diagonal_mean > 0.9) {
-        # similarity'den distance: distance = 1 - similarity
+        # distance from similarity: distance = 1 - similarity
         distance_matrix <- 1 - data
         diag(distance_matrix) <- 0
         return(as.dist(distance_matrix))
       } else {
-        # Diagonal ~0 ise bu zaten distance olabilir
+        # If diagonal is ~0, this can already be distance
         return(as.dist(data))
       }
     }
 
-    # Veri ??er??evesi ya da veri matrisi ise (ham veri)
+    # If it is a data frame or data matrix (raw data)
     if (is.data.frame(data) || is.matrix(data)) {
       return(dist(data, method = "euclidean"))
     }
@@ -174,7 +174,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
     })
   }
 
-  # Calinski-Harabasz skoru
+  # Calinski-Harabasz score
   calculate_calinski_harabasz <- function(dist_matrix, clusters, method_name) {
     tryCatch({
       cluster.stats(dist_matrix, clusters)$ch
@@ -184,7 +184,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
     })
   }
 
-  # Dunn skoru
+  # Dunn score
   calculate_dunn <- function(dist_matrix, clusters, method_name) {
     tryCatch({
       cluster.stats(dist_matrix, clusters)$dunn
@@ -194,7 +194,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
     })
   }
 
-  # Davies-Bouldin skoru
+  # Davies-Bouldin score
   calculate_davies_bouldin <- function(data, clusters, method_name) {
     tryCatch({
       if (inherits(data, "dist")) return(NA)
@@ -205,7 +205,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
     })
   }
 
-  # Manuel Davies-Bouldin hesaplay??c??
+  # Manuel Davies-Bouldin calculator
   manual_davies_bouldin <- function(data, clusters) {
     clusters <- as.numeric(factor(clusters))  
     unique_clusters <- unique(clusters)
@@ -237,8 +237,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
   results$ensemble_quality <- list()  
 
   # ============================================================
-  # B??L??M 4: ENSEMBLE K??MELEME ALGORITMALARI
-  # ============================================================
   message("Ensemble clustering algorithms running...")
 
   # ============================================================
@@ -248,24 +246,23 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running CSPA_Hc algorithm...")
 
     cspa_ensemble <- function(H_weighted) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # CSPA ensemble k??meleme algoritmas??n?? uygular
-
-      # Similarity matrisinden mesafe matrisine d??n????t??r
+      # This function implements the CSPA ensemble clustering algorithm using a weighted hypergraph matrix.
+      
+      # Converts from a similarity matrix to a distance matrix.
       D <- 1 - H_weighted
 
-      # Hiyerar??ik k??meleme uygula
+      # Apply hierarchical clustering
       hc <- hclust(as.dist(D), method = "average")
 
-      # Optimal k??me say??s??n?? silhouette y??ntemi ile belirle
-      k_range <- 2:10  # Denenecek k de??erleri aral??????
+      # Determine the optimal number of clusters using the silhouette method
+      k_range <- 2:10  
       sil_scores <- numeric(length(k_range))
 
       for (i in seq_along(k_range)) {
         k_val <- k_range[i]
         clusters <- cutree(hc, k = k_val)
 
-        # Silhouette de??erini hesaplamak i??in en az 2 k??me gerekir
+        # At least 2 clusters are required to calculate the silhouette value
         if (length(unique(clusters)) > 1) {
           sil <- cluster::silhouette(clusters, as.dist(D))
           sil_scores[i] <- mean(sil[, 3])
@@ -274,16 +271,14 @@ setMethod("ensemble_clustering", "ScEnsemble",
         }
       }
 
-      # En y??ksek ortalama silhouette de??erine sahip k'y?? se??
       optimal_k <- k_range[which.max(sil_scores)]
 
-      # Final k??meleri elde et
       final_clusters <- cutree(hc, k = optimal_k)
 
       return(final_clusters)
     }
 
-    # CSPA algoritmas??n?? farkl?? hypergraph matrislerine uygula
+    # Apply the CSPA algorithm to different hypergraph matrices
     results$ensemble_clusters$cspa_hc <- list(
       standard = cspa_ensemble(HH),
       silhouette = cspa_ensemble(HH_sil),
@@ -292,7 +287,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = cspa_ensemble(HH_ave)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$cspa_hc <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa$standard, "CSPA_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa$silhouette, "CSPA_silhouette"),
@@ -301,7 +295,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa$average, "CSPA_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI (Adjusted Rand Index) de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$cspa_hc <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$standard),
@@ -320,22 +313,17 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running CSPA_Louvain algorithm...")
 
     cspa_louvain_ensemble <- function(H_weighted) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # CSPA ile Louvain topluluk tespitini birle??tiren ensemble k??meleme uygular
 
-      # Similarity matrisinden graf olu??tur
+      # Create graph from similarity matrix
       g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
 
-      # Louvain topluluk tespiti algoritmas??n?? uygula
+      # Apply Louvain community detection algorithm
       louvain_result <- igraph::cluster_louvain(g)
-
-      # K??me atamalar??n?? al
       clusters <- igraph::membership(louvain_result)
 
       return(clusters)
     }
 
-    # CSPA-Louvain algoritmas??n?? farkl?? hypergraph matrislerine uygula
     results$ensemble_clusters$cspa_louvain <- list(
       standard = cspa_louvain_ensemble(HH),
       silhouette = cspa_louvain_ensemble(HH_sil),
@@ -344,7 +332,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = cspa_louvain_ensemble(HH_ave)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$cspa_louvain <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_louvain$standard, "CSPA_Louvain_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_louvain$silhouette, "CSPA_Louvain_silhouette"),
@@ -353,7 +340,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_louvain$average, "CSPA_Louvain_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$cspa_louvain <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$standard),
@@ -372,22 +358,17 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running CSPA_Leiden algorithm...")
 
     cspa_leiden_ensemble <- function(H_weighted, resolution=1.0) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # CSPA ile Leiden topluluk tespitini birle??tiren ensemble k??meleme uygular
-
-      # Similarity matrisinden graf olu??tur
+      
       g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
 
-      # Leiden topluluk tespiti uygula
       leiden_result <- igraph::cluster_leiden(g, resolution = resolution)
 
-      # K??me atamalar??n?? al
       clusters <- igraph::membership(leiden_result)
 
       return(clusters)
     }
 
-    # En iyi sonucu verecek resolution parametresini bulmaya ??al????
+    # Try to find the resolution parameter that will give the best result
     optimize_resolution <- function(H_weighted, true_labels) {
       res_range <- seq(0.1, 2.0, by = 0.1)
       ari_scores <- numeric(length(res_range))
@@ -400,11 +381,8 @@ setMethod("ensemble_clustering", "ScEnsemble",
       best_res <- res_range[which.max(ari_scores)]
       return(best_res)
     }
-
-    # Her bir hypergraph matrisi i??in ayr?? ayr?? resolution parametresi hesapla
     resolution_params <- list()
 
-    # E??er ger??ek etiketler verilmi??se, her matris i??in resolution parametresini optimize et
     if (!is.null(true_labels)) {
       resolution_params$standard <- optimize_resolution(HH, true_labels)
       resolution_params$silhouette <- optimize_resolution(HH_sil, true_labels)
@@ -412,7 +390,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       resolution_params$db <- optimize_resolution(HH_db, true_labels)
       resolution_params$average <- optimize_resolution(HH_ave, true_labels)
     } else {
-      # Ger??ek etiketler yoksa varsay??lan de??erleri kullan
       resolution_params$standard <- 1.0
       resolution_params$silhouette <- 1.0
       resolution_params$ch <- 1.0
@@ -420,7 +397,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       resolution_params$average <- 1.0
     }
 
-    # CSPA-Leiden algoritmas??n?? farkl?? hypergraph matrislerine, her biri i??in optimize edilmi?? resolution de??erleriyle uygula
     results$ensemble_clusters$cspa_leiden <- list(
       standard = cspa_leiden_ensemble(HH, resolution_params$standard),
       silhouette = cspa_leiden_ensemble(HH_sil, resolution_params$silhouette),
@@ -429,7 +405,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = cspa_leiden_ensemble(HH_ave, resolution_params$average)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$cspa_leiden <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_leiden$standard, "CSPA_Leiden_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_leiden$silhouette, "CSPA_Leiden_silhouette"),
@@ -438,7 +413,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_leiden$average, "CSPA_Leiden_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$cspa_leiden <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$standard),
@@ -457,45 +431,41 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running MCLA_Hc algorithm...")
 
     mcla_ensemble <- function(H_weighted, k=NULL) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # MCLA ensemble k??meleme algoritmas??n?? uygular
-
-      # Hyperedge say??s?? (H'nin s??tun say??s??)
+      # This function implements the MCLA ensemble clustering algorithm using a weighted hypergraph matrix.
+      
+      # Number of hyperedges (number of columns of H)
       n_hyperedges <- ncol(H_weighted)
 
-      # Hyperedge'ler aras??nda Jaccard benzerli??i hesapla
+      # Calculate Jaccard similarity between hyperedges
       J <- matrix(0, n_hyperedges, n_hyperedges)
 
       for (i in 1:(n_hyperedges-1)) {
         for (j in (i+1):n_hyperedges) {
-          # Jaccard benzerli??i hesapla (kesi??im/birle??im)
-          # Boolean operat??rler yerine ger??ek say?? de??erlerini kullan
+          # Calculate Jaccard similarity (intersection/union)
+          # Use real numbers instead of Boolean operators
           intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
           union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
 
           if (union > 0) {
             J[i, j] <- intersection / union
-            J[j, i] <- J[i, j]  # Matris simetriktir
+            J[j, i] <- J[i, j]  
           }
         }
       }
 
-      # Mesafe matrisine d??n????t??r
       D <- 1 - J
-
-      # Hyperedge'leri k??meleme
+      # Clustering Hyperedges
       hc <- hclust(as.dist(D), method = "average")
 
-      # Optimal k??me say??s??n?? silhouette y??ntemi ile belirle
+      
       if (is.null(k)) {
-        k_range <- 2:min(10, n_hyperedges-1)  # Denenecek k de??erleri aral??????
+        k_range <- 2:min(10, n_hyperedges-1)  
         sil_scores <- numeric(length(k_range))
 
         for (i in seq_along(k_range)) {
           k_val <- k_range[i]
           clusters <- cutree(hc, k = k_val)
 
-          # Silhouette de??erini hesaplamak i??in en az 2 k??me gerekir
           if (length(unique(clusters)) > 1) {
             sil <- cluster::silhouette(clusters, as.dist(D))
             sil_scores[i] <- mean(sil[, 3])
@@ -504,7 +474,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
           }
         }
 
-        # En y??ksek ortalama silhouette de??erine sahip k'y?? se??
         optimal_k <- k_range[which.max(sil_scores)]
       } else {
         optimal_k <- k
@@ -512,28 +481,26 @@ setMethod("ensemble_clustering", "ScEnsemble",
 
       meta_clusters <- cutree(hc, k = optimal_k)
 
-      # Meta-k??meleri birle??tir ve her nesne i??in en ??ok ili??kili k??meyi bul
+      # Combine meta-clusters and find the most relevant cluster for each object
       n_samples <- nrow(H_weighted)
       cluster_association <- matrix(0, n_samples, optimal_k)
 
       for (i in 1:optimal_k) {
         meta_cluster_i <- which(meta_clusters == i)
         if (length(meta_cluster_i) > 0) {
-          # Bu meta-k??meye ait H s??tunlar??n?? topla
-          # H_weighted matrisinin de??erlerini kullan
+          # H columns belonging to this meta-group collect
+          # Use values of H_weighted matrix
           cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
         }
       }
 
-      # Her nesneyi en y??ksek ili??kiye sahip meta-k??meye ata
+      # Assign each object to the meta-cluster with the highest association
       final_clusters <- apply(cluster_association, 1, which.max)
 
-      # K??me etiketlerini rasgele atama yerine 1'den ba??layan ard??????k say??lar olarak d??nd??r
+      # Instead of assigning cluster labels randomly, treat them as consecutive numbers starting from 1
       return(as.integer(final_clusters))
     }
 
-    # MCLA algoritmas??n?? farkl?? hypergraph matrislerine uygula
-    # Not: MCLA i??in k parametresi gereklidir
     results$ensemble_clusters$mcla <- list(
       standard = mcla_ensemble(H),
       silhouette = mcla_ensemble(H_sil),
@@ -542,7 +509,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = mcla_ensemble(H_ave)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$mcla <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla$standard, "MCLA_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla$silhouette, "MCLA_silhouette"),
@@ -551,7 +517,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla$average, "MCLA_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$mcla <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$standard),
@@ -570,63 +535,49 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running MCLA_Louvain algorithm...")
 
     mcla_louvain_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # MCLA ile Louvain topluluk tespitini birle??tiren ensemble k??meleme uygular
-
-      # Hyperedge say??s?? (H'nin s??tun say??s??)
+      
       n_hyperedges <- ncol(H_weighted)
 
-      # Hyperedge'ler aras??nda Jaccard benzerli??i hesapla
       J <- matrix(0, n_hyperedges, n_hyperedges)
 
       for (i in 1:(n_hyperedges-1)) {
         for (j in (i+1):n_hyperedges) {
-          # Jaccard benzerli??i hesapla - ger??ek say?? de??erleri i??in
           intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
           union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
 
           if (union > 0) {
             J[i, j] <- intersection / union
-            J[j, i] <- J[i, j]  # Matris simetriktir
+            J[j, i] <- J[i, j]  
           }
         }
       }
 
-      # Benzerlik matrisinden graf olu??tur
       g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
 
-      # Meta-k??meleme i??in Louvain topluluk tespiti uygula
       louvain_result <- igraph::cluster_louvain(g)
       meta_clusters <- igraph::membership(louvain_result)
 
-      # Bulunan meta-k??me say??s??n?? al
       k_actual <- length(unique(meta_clusters))
 
-      # E??er k belirtilmi??se ve bulunan k??me say??s?? farkl??ysa, uyar?? ver
       if (!is.null(k) && k != k_actual) {
         warning(paste("Louvain algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
       }
 
-      # Meta-k??meleri birle??tir ve her nesne i??in en ??ok ili??kili k??meyi bul
       n_samples <- nrow(H_weighted)
       cluster_association <- matrix(0, n_samples, k_actual)
 
       for (i in 1:k_actual) {
         meta_cluster_i <- which(meta_clusters == i)
         if (length(meta_cluster_i) > 0) {
-          # Bu meta-k??meye ait H s??tunlar??n?? topla
           cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
         }
       }
 
-      # Her nesneyi en y??ksek ili??kiye sahip meta-k??meye ata
       final_clusters <- apply(cluster_association, 1, which.max)
 
-      # K??me etiketlerini ard??????k say??lar olarak d??nd??r
       return(as.integer(final_clusters))
     }
 
-    # MCLA-Louvain algoritmas??n?? farkl?? hypergraph matrislerine uygula
     results$ensemble_clusters$mcla_louvain <- list(
       standard = mcla_louvain_ensemble(H),
       silhouette = mcla_louvain_ensemble(H_sil),
@@ -635,7 +586,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = mcla_louvain_ensemble(H_ave)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$mcla_louvain <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_louvain$standard, "MCLA_Louvain_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_louvain$silhouette, "MCLA_Louvain_silhouette"),
@@ -644,7 +594,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_louvain$average, "MCLA_Louvain_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$mcla_louvain <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$standard),
@@ -663,63 +612,48 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running MCLA_Leiden algorithm...")
 
     mcla_leiden_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # MCLA ile Leiden topluluk tespitini birle??tiren ensemble k??meleme uygular
 
-      # Hyperedge say??s?? (H'nin s??tun say??s??)
       n_hyperedges <- ncol(H_weighted)
 
-      # Hyperedge'ler aras??nda Jaccard benzerli??i hesapla
       J <- matrix(0, n_hyperedges, n_hyperedges)
 
       for (i in 1:(n_hyperedges-1)) {
         for (j in (i+1):n_hyperedges) {
-          # Jaccard benzerli??i hesapla
           intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
           union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
 
           if (union > 0) {
             J[i, j] <- intersection / union
-            J[j, i] <- J[i, j]  # Matris simetriktir
+            J[j, i] <- J[i, j] 
           }
         }
       }
 
-      # Benzerlik matrisinden graf olu??tur
       g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
 
-      # Meta-k??meleme i??in Leiden topluluk tespiti uygula
       leiden_result <- igraph::cluster_leiden(g, resolution = resolution, objective_function = "CPM")
       meta_clusters <- igraph::membership(leiden_result)
 
-      # Bulunan meta-k??me say??s??n?? al
       k_actual <- length(unique(meta_clusters))
 
-      # E??er k belirtilmi??se ve bulunan k??me say??s?? farkl??ysa, uyar?? ver
       if (!is.null(k) && k != k_actual) {
         warning(paste("Leiden algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
       }
-
-      # Meta-k??meleri birle??tir ve her nesne i??in en ??ok ili??kili k??meyi bul
       n_samples <- nrow(H_weighted)
       cluster_association <- matrix(0, n_samples, k_actual)
 
       for (i in 1:k_actual) {
         meta_cluster_i <- which(meta_clusters == i)
         if (length(meta_cluster_i) > 0) {
-          # Bu meta-k??meye ait H s??tunlar??n?? topla
           cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
         }
       }
 
-      # Her nesneyi en y??ksek ili??kiye sahip meta-k??meye ata
       final_clusters <- apply(cluster_association, 1, which.max)
 
-      # K??me etiketlerini ard??????k say??lar olarak d??nd??r
       return(as.integer(final_clusters))
     }
-
-    # Resolution parametresi optimizasyonu i??in fonksiyon
+    
     optimize_resolution_leiden <- function(H_weighted, true_labels) {
       res_range <- seq(0.1, 2.0, by = 0.1)
       ari_scores <- numeric(length(res_range))
@@ -733,10 +667,8 @@ setMethod("ensemble_clustering", "ScEnsemble",
       return(best_res)
     }
 
-    # Her bir hypergraph matrisi i??in ayr?? ayr?? resolution parametresi hesapla
     resolution_params <- list()
 
-    # E??er ger??ek etiketler verilmi??se, her matris i??in resolution parametresini optimize et
     if (!is.null(true_labels)) {
       resolution_params$standard <- optimize_resolution_leiden(H, true_labels)
       resolution_params$silhouette <- optimize_resolution_leiden(H_sil, true_labels)
@@ -744,7 +676,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
       resolution_params$db <- optimize_resolution_leiden(H_db, true_labels)
       resolution_params$average <- optimize_resolution_leiden(H_ave, true_labels)
     } else {
-      # Ger??ek etiketler yoksa varsay??lan de??erleri kullan
+      
       resolution_params$standard <- 1.0
       resolution_params$silhouette <- 1.0
       resolution_params$ch <- 1.0
@@ -752,7 +684,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       resolution_params$average <- 1.0
     }
 
-    # MCLA-Leiden algoritmas??n?? farkl?? hypergraph matrislerine uygula
     results$ensemble_clusters$mcla_leiden <- list(
       standard = mcla_leiden_ensemble(H, resolution = resolution_params$standard),
       silhouette = mcla_leiden_ensemble(H_sil, resolution = resolution_params$silhouette),
@@ -761,7 +692,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = mcla_leiden_ensemble(H_ave, resolution = resolution_params$average)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$mcla_leiden <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_leiden$standard, "MCLA_Leiden_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_leiden$silhouette, "MCLA_Leiden_silhouette"),
@@ -769,7 +699,7 @@ setMethod("ensemble_clustering", "ScEnsemble",
       db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla_leiden$db, "MCLA_Leiden_db"),
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_leiden$average, "MCLA_Leiden_average")
     )
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
+
     if (!is.null(true_labels)) {
       results$ensemble_ari$mcla_leiden <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$standard),
@@ -787,56 +717,47 @@ setMethod("ensemble_clustering", "ScEnsemble",
     message("Running Hypergraph Spectral Clustering(HGSC) algorithm...")
 
     hgsc_ensemble <- function(H_weighted, k=NULL) {
-      # Bu fonksiyon, a????rl??kl?? bir hypergraph matrisi kullanarak
-      # hypergraph spectral k??meleme algoritmas??n?? uygular
+      # Calculate the Hypergraph Laplacian matrix
+      D_v <- diag(rowSums(H_weighted))  # Vertex degree matrix
+      D_e <- diag(colSums(H_weighted))  # Edge degree matrix
 
-      # Hypergraph Laplacian matrisini hesapla
-      D_v <- diag(rowSums(H_weighted))  # Vertex derece matrisi
-      D_e <- diag(colSums(H_weighted))  # Edge derece matrisi
-
-      # D_v^(-1/2) ve D_e^(-1) hesapla
       D_v_inv_sqrt <- diag(1 / sqrt(diag(D_v)))
       D_e_inv <- diag(1 / diag(D_e))
 
-      # Normalize edilmi?? Laplacian matrisi
+      # Normalized Laplacian matrix
       L <- diag(nrow(H_weighted)) - D_v_inv_sqrt %*% H_weighted %*% D_e_inv %*% t(H_weighted) %*% D_v_inv_sqrt
 
       estimate_optimal_k <- function(L) {
-        # Laplacian matrisinin eigen de??erlerini hesapla
+        # Calculate the eigenvalues of the Laplacian matrix
         eigen_values <- eigen(L, only.values = TRUE)$values
 
-        # Eigen de??erleri k??????kten b??y????e s??rala
+        # Sort Eigenvalues from smallest to largest
         eigen_values <- sort(eigen_values)
 
-        # Ard??????k eigen de??erler aras??ndaki farklar?? hesapla
+        # Calculate the differences between consecutive eigenvalues
         eigen_gaps <- diff(eigen_values)
 
-        # En b??y??k gap'in indeksini bul
-        # Bu, optimum k??me say??s??na i??aret eder
+        # Find the index of the largest gap 
+        # This refers to the optimal number of clusters
         k_est <- which.max(eigen_gaps) + 1
 
         return(k_est)
       }
 
-      # E??er k de??eri verilmemi??se, eigengap y??ntemiyle tahmin et
       if(is.null(k)) {
         k <- estimate_optimal_k(L)
       }
-      # Eigen de??erler ve vekt??rler
+      # Eigenvalues and vectors
       eigen_result <- eigen(L)
 
       eigenvalues_sorted <- sort(eigen_result$values, index.return = TRUE)
       U <- eigen_result$vectors[, eigenvalues_sorted$ix[1:k]]
-      # En k??????k k adet eigen de??ere kar????l??k gelen eigen vekt??rler
-      #U <- eigen_result$vectors[, (ncol(eigen_result$vectors) - k + 1):ncol(eigen_result$vectors)]
 
-      # K-means k??meleme
       kmeans_result <- kmeans(U, centers = k, nstart = 20)
 
       return(kmeans_result$cluster)
     }
 
-    # HGSC algoritmas??n?? farkl?? hypergraph matrislerine uygula
     results$ensemble_clusters$hgsc <- list(
       standard = hgsc_ensemble(HH),
       silhouette = hgsc_ensemble(HH_sil),
@@ -845,7 +766,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = hgsc_ensemble(HH_ave)
     )
 
-    # Kalite indekslerini hesapla
     results$quality_indices$hgsc <- list(
       standard = calculate_quality_indices(HH, results$ensemble_clusters$hgsc$standard, "HGSC_standard"),
       silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$hgsc$silhouette, "HGSC_silhouette"),
@@ -854,7 +774,6 @@ setMethod("ensemble_clustering", "ScEnsemble",
       average = calculate_quality_indices(HH_ave, results$ensemble_clusters$hgsc$average, "HGSC_average")
     )
 
-    # E??er ger??ek etiketler verilmi??se ARI de??erlerini hesapla
     if (!is.null(true_labels)) {
       results$ensemble_ari$hgsc <- list(
         standard = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$standard),

@@ -44,8 +44,8 @@ setMethod("generate_all_hypergraphs", "ScEnsemble",
   
   apply_weight_and_combine_fixed <- function(metric_name, weight_list, H_list, algorithms) {
     weighted_H_list <- lapply(algorithms, function(algo) {
-      # Mevcut veri yapısına göre düzeltilmiş erişim
-      weight <- weight_list[[algo]][[metric_name]]  # Değişiklik burada
+
+      weight <- weight_list[[algo]][[metric_name]] 
       
       if (is.null(weight) || is.na(weight) || !is.numeric(weight)) {
         warning(sprintf("Invalid weight for metric '%s' and algorithm '%s'. Using weight = 0.", 
@@ -58,7 +58,7 @@ setMethod("generate_all_hypergraphs", "ScEnsemble",
     H_weighted <- do.call(cbind, weighted_H_list)
     HH_weighted <- H_weighted %*% t(H_weighted)
     
-    # Toplam ağırlık hesaplama da düzeltildi
+    
     total_weight <- sum(sapply(algorithms, function(algo) {
       w <- weight_list[[algo]][[metric_name]]
       if (is.null(w) || is.na(w) || !is.numeric(w)) 0 else w
