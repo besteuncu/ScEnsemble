@@ -1,6 +1,3 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # ScEnsemble
 
 **ScEnsemble** is an R package that integrates multiple ensemble
@@ -20,11 +17,10 @@ devtools::install_github("besteuncu/ScEnsemble")
 #>   Use `force = TRUE` to force installation
 ```
 
-## Example
+All other details are explained in detail in the vignettes.
 
-This is a basic example which shows you how to solve a common problem:
 
 ``` r
 library(ScEnsemble)
-## basic example code
+
 ```
