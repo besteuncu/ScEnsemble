@@ -11,9 +11,9 @@ Description: This package applies multiple individual and ensemble clustering
 Depends: R (>= 4.2.0)
 Imports: 
     methods, cluster, fpc, clValid, clusterCrit, SingleCellExperiment, SC3, 
-    scater, SIMLR, Seurat, cidr, Matrix, irlba, ggplot2, igraph, mclust, 
-    scRNAseq, Rtsne, stats, monocle3, RaceID, RColorBrewer, clusterSim, corrplot, 
-    dplyr, ggalluvial, gridExtra, plotly, tidyr, uwot, viridis, SummarizedExperiment
+    SIMLR, Seurat, cidr, ggplot2, igraph, mclust, scRNAseq, Rtsne, stats, 
+    monocle3, RaceID, RColorBrewer, clusterSim, corrplot, dplyr, ggalluvial, 
+    gridExtra, plotly, tidyr, uwot, viridis, SummarizedExperiment
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
