@@ -40,7 +40,7 @@ library(ScEnsemble)
 If you intend to use your own datasets, they must first be prepared as `SingleCellExperiment` objects. When annotations are available, they should be incorporated under `colData`. The ScEnsemble framework utilizes the `CreateScEnsemble` function to generate the primary object structure, and all subsequent functions operate within this unified S4 object architecture.
 
 ```{r}
-
+library(ScEnsemble)
 library(scRNAseq)
 library(SingleCellExperiment)
 
@@ -102,4 +102,3 @@ The resulting cluster labels represent a sophisticated synthesis that transcends
 scens <- ensemble_clustering(scens)
 
 ```
-

@@ -63,8 +63,9 @@ setClass("EnsembleResults",
 #' @slot ensemble_results A list of ensemble clustering results
 #' 
 #' @importFrom methods setClass setClassUnion
-#' @export
+#'
 setClassUnion("numericORNULL", c("numeric", "NULL"))
+#' @export
 setClass("ScEnsemble",
          slots = list(
            sce = "SingleCellExperiment",

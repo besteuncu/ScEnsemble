@@ -4,6 +4,8 @@
 #' multiple algorithms including CSPA (Cluster-based Similarity Partitioning Algorithm),
 #' MCLA (Meta-CLustering Algorithm), and HGSC (Hypergraph Spectral Clustering).
 #'
+#' @rdname ensemble_clustering
+#' 
 #' @param expression_data A matrix or data frame containing the gene expression data.
 #'   Rows represent cells and columns represent genes.
 #' @param true_labels Optional vector of true cluster labels for validation.

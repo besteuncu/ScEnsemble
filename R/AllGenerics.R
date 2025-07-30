@@ -1,8 +1,7 @@
 #' Generic functions for ScEnsemble package
 #' @importFrom methods setGeneric
 #' 
-#' @name ScEnsemble-generics
-#' @rdname ScEnsemble-generics
+#' @rdname run_individual_algorithms
 
 #' @title Run Individual Clustering Algorithms
 #' @description Apply multiple individual clustering algorithms to single-cell data
@@ -18,6 +17,8 @@
 #' @export
 setGeneric("run_individual_algorithms", function(object, ...) standardGeneric("run_individual_algorithms"))
 
+#' @rdname calculate_all_validation_indices
+#' 
 #' @title Calculate Validation Indices
 #' @description Calculate validation indices for clustering results
 #' 
@@ -29,6 +30,8 @@ setGeneric("run_individual_algorithms", function(object, ...) standardGeneric("r
 #' @export
 setGeneric("calculate_all_validation_indices", function(object, ...) standardGeneric("calculate_all_validation_indices"))
 
+#' @rdname generate_all_hypergraphs
+#' 
 #' @title Generate Hypergraphs
 #' @description Generate weighted hypergraph representations from clustering results
 #' 
@@ -40,6 +43,8 @@ setGeneric("calculate_all_validation_indices", function(object, ...) standardGen
 #' @export
 setGeneric("generate_all_hypergraphs", function(object, ...) standardGeneric("generate_all_hypergraphs"))
 
+#' @rdname ensemble_clustering
+#' 
 #' @title Ensemble Clustering Algorithms
 #' @description Apply ensemble clustering methods
 #' 

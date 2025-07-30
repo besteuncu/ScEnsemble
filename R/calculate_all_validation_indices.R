@@ -1,8 +1,10 @@
-#' Calculate All Validation Indices - Refactored Version
-#'
+#' Calculate All Validation Indices
+#' 
 #' This function calculates multiple clustering validation indices for each algorithm's
 #' clustering results and returns both raw and normalized scores using a simplified,
 #' more robust approach.
+#'
+#' @rdname calculate_all_validation_indices
 #'
 #' @param object A ScEnsemble object containing clustering results and embedding data
 #' @param verbose Logical indicating whether to print progress messages. Default is TRUE.
@@ -22,7 +24,8 @@
 #'   \item \strong{Davies-Bouldin (DB)}: Average similarity between clusters.
 #'   \item \strong{Dunn}: Ratio of minimum inter-cluster distance to maximum intra-cluster distance.
 #' }
-#'
+#' 
+#' 
 #' @importFrom cluster silhouette
 #' @importFrom fpc calinhara
 #' @importFrom clusterSim index.DB

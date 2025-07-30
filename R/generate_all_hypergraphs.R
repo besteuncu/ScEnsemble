@@ -4,18 +4,16 @@
 #' from individual clustering algorithm results. It also computes weighted versions of these matrices
 #' based on internal validation metrics.
 #'
+#' @rdname generate_all_hypergraphs
+#' 
 #' @param object A \code{ScEnsemble} object containing individual clustering results and validation metrics
 #' @param verbose Logical; whether to print progress messages (default is TRUE)
 #'
 #' @return An updated \code{ScEnsemble} object with added slot \code{@hypergraphs} storing the H and HH matrices.
 #' @export
-#'
-#' @examples
-#' scens <- generate_all_hypergraphs(scens)
-setGeneric("generate_all_hypergraphs", function(object, verbose = TRUE) standardGeneric("generate_all_hypergraphs"))
-
-#' @export
-setMethod("generate_all_hypergraphs", "ScEnsemble", function(object, verbose = TRUE) {
+setMethod("generate_all_hypergraphs", "ScEnsemble", 
+          function(object, verbose = TRUE) {
+            
   if (verbose) message("Generating hypergraph matrices...")
   
   clustering_results <- object@individual_results@clustering_results

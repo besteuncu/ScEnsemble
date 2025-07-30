@@ -2,20 +2,21 @@
 % Please edit documentation in R/AllGenerics.R, R/generate_all_hypergraphs.R
 \name{generate_all_hypergraphs}
 \alias{generate_all_hypergraphs}
+\alias{generate_all_hypergraphs,ScEnsemble-method}
 \title{Generate Hypergraphs}
 \usage{
-generate_all_hypergraphs(object, verbose = TRUE)
+generate_all_hypergraphs(object, ...)
 
-generate_all_hypergraphs(object, verbose = TRUE)
+\S4method{generate_all_hypergraphs}{ScEnsemble}(object, verbose = TRUE)
 }
 \arguments{
 \item{object}{A \code{ScEnsemble} object containing individual clustering results and validation metrics}
 
+\item{...}{Additional arguments}
+
 \item{verbose}{Logical; whether to print progress messages (default is TRUE)}
 
 \item{algorithms}{Character vector of algorithms to include}
-
-\item{...}{Additional arguments}
 }
 \value{
 ScEnsemble object with hypergraphs slot filled
@@ -28,7 +29,4 @@ Generate weighted hypergraph representations from clustering results
 This function computes hypergraph incidence matrices (H) and pairwise co-association matrices (HH)
 from individual clustering algorithm results. It also computes weighted versions of these matrices
 based on internal validation metrics.
-}
-\examples{
-scens <- generate_all_hypergraphs(scens)
 }

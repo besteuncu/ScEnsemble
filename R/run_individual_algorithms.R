@@ -3,6 +3,8 @@
 #' This function runs multiple single-cell clustering algorithms on the provided data
 #' and returns clustering results, performance metrics, and runtime information.
 #'
+#' @rdname run_individual_algorithms
+#' 
 #' @param data A numeric matrix or data frame containing single-cell expression data.
 #'   Rows represent genes and columns represent cells.
 #' @param true_labels Optional vector of true cluster labels for validation.
