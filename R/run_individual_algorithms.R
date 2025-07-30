@@ -161,6 +161,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
     SIMLR = function(data) {
       if (is(data, "dgCMatrix") || is(data, "Matrix")) {
         data <- as.matrix(data)
+        data <- t(data)
       }
       k_estimate <- SIMLR_Estimate_Number_of_Clusters(data, NUMC = 2:10, cores.ratio = 0.5)
       best_k1 <- which.min(k_estimate$K1)

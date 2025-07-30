@@ -70,8 +70,6 @@
 #' @importFrom stats kmeans hclust cutree dist
 #' @importFrom utils head
 #'
-#' @author ScEnsemble Package Authors
-#' @seealso \code{\link{run_individual_algorithms}}, \code{\link{generate_all_hypergraphs}}
 #'
 #' @export
 setMethod("ensemble_clustering", "ScEnsemble", 

@@ -85,9 +85,3 @@ print(results$ensemble_ari)
 }
 
 }
-\seealso{
-\code{\link{run_individual_algorithms}}, \code{\link{generate_all_hypergraphs}}
-}
-\author{
-ScEnsemble Package Authors
-}

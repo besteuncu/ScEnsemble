@@ -23,7 +23,7 @@ ScEnsemble object with hypergraphs slot filled
 An updated \code{ScEnsemble} object with added slot \code{@hypergraphs} storing the H and HH matrices.
 }
 \description{
-Generate hypergraph representations from clustering results
+Generate weighted hypergraph representations from clustering results
 
 This function computes hypergraph incidence matrices (H) and pairwise co-association matrices (HH)
 from individual clustering algorithm results. It also computes weighted versions of these matrices

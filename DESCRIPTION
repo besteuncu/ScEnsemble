@@ -1,7 +1,8 @@
 Package: ScEnsemble
 Title: Ensemble Clustering for Single-Cell RNA-seq Data
 Version: 0.99.0
-Authors@R: person("Beste", "Uncu", email = "besteuncu@gmail.com", role = c("aut", "cre"))
+Authors@R: c(person("Beste", "Uncu", email = "besteuncu@gmail.com", 
+    role = c("aut", "cre")), person("İdil", "Yavuz", role=c("aut")))
 Description: This package applies multiple individual and ensemble clustering 
     algorithms to single-cell RNA-seq data with integrated validation and 
     visualization tools. It implements k-means, hierarchical clustering,
@@ -9,9 +10,10 @@ Description: This package applies multiple individual and ensemble clustering
     combining their results using hypergraph-based ensemble approaches.
 Depends: R (>= 4.2.0)
 Imports: 
-    SummarizedExperiment, SingleCellExperiment, igraph, Matrix,
-    cluster, dbscan, mixtools, stats, methods, utils, ggplot2, 
-    dplyr, tibble, viridis, corrplot
+    methods, cluster, fpc, clValid, clusterCrit, SingleCellExperiment, SC3, 
+    scater, SIMLR, Seurat, cidr, Matrix, irlba, ggplot2, igraph, mclust, 
+    scRNAseq, Rtsne, stats, monocle3, RaceID, RColorBrewer, clusterSim, corrplot, 
+    dplyr, ggalluvial, gridExtra, plotly, tidyr, uwot, viridis
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
@@ -22,9 +24,9 @@ RoxygenNote: 7.3.2
 URL: https://github.com/besteuncu/ScEnsemble
 BugReports: https://github.com/besteuncu/ScEnsemble/issues
 Suggests: 
-    testthat (>= 3.0.0),
+    BiocStyle,
     knitr,
     rmarkdown,
-    BiocStyle
+    testthat (>= 3.0.0),
 VignetteBuilder: knitr
 Config/testthat/edition: 3

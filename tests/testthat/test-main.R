@@ -1,4 +1,3 @@
-
 library(testthat)
 library(ScEnsemble)
 
@@ -7,30 +6,12 @@ test_check("ScEnsemble")
 library(SingleCellExperiment)
 library(scRNAseq)
 
-create_test_data <- function(n_genes = 50, n_cells = 30) {
-  set.seed(123)
-  
-  counts <- matrix(0, nrow = n_genes, ncol = n_cells)
-  
-  cell_types <- rep(c("TypeA", "TypeB", "TypeC"), length.out = n_cells)
-  
-  for(i in 1:n_cells) {
-    for(j in 1:n_genes) {
-      if(runif(1) > 0.7) {  
-        counts[j, i] <- rpois(1, lambda = 2)
-      }
-    }
-  }
-  
-  rownames(counts) <- paste0("Gene", 1:n_genes)  
-  colnames(counts) <- paste0("Cell", 1:n_cells)
-  
-  sce <- SingleCellExperiment(
-    assays = list(counts = counts),
-    colData = DataFrame(cell_type = cell_types)
-  )
-  
-  return(list(sce = sce, ann = cell_types))
+create_test_data <- function() {
+  library(scRNAseq)
+  sce <- PollenGliaData()
+  ann <- colData(sce)[["Inferred Cell Type"]]
+  colData(sce)$cell_type <- ann
+  return(list(sce = sce, ann = ann))
 }
 
 # Test 1: CreateScEnsemble

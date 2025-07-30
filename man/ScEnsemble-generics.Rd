@@ -4,17 +4,12 @@
 \alias{ScEnsemble-generics}
 \title{Run Individual Clustering Algorithms}
 \usage{
-run_individual_algorithms(
-  object,
-  algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
-  seed = 42,
-  verbose = TRUE,
-  n_cores = 1,
-  ...
-)
+run_individual_algorithms(object, ...)
 }
 \arguments{
 \item{object}{ScEnsemble object}
+
+\item{...}{Additional arguments}
 
 \item{algorithms}{Character vector of algorithms to run. Options: "SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"}
 
@@ -23,8 +18,6 @@ run_individual_algorithms(
 \item{verbose}{Logical, whether to print progress messages}
 
 \item{n_cores}{Number of cores to use for parallel processing}
-
-\item{...}{Additional arguments}
 }
 \value{
 ScEnsemble object with individual_results slot filled

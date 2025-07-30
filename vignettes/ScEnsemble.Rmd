@@ -26,29 +26,10 @@ For demonstration purposes, this `ScEnsemble` algorithm tutorial utilizes an exp
 
 
 ```{r, message=FALSE, warning=FALSE}
-library(cluster)
-library(fpc)
-library(clValid)
-library(clusterCrit)
-library(SingleCellExperiment)
-library(SC3)
-library(scater)
-library(SIMLR)
-library(Seurat)
-library(cidr)
-library(Matrix)
-library(irlba)
-library(cluster)
-library(ggplot2)
-library(igraph)
-library(mclust)
-library(scRNAseq)
-library(Rtsne)
-library(stats)
-library(monocle3)
-library(RaceID)
-library(ScEnsemble)
 
+library(SingleCellExperiment)
+library(scRNAseq)
+library(ScEnsemble)
 
 ```
 
@@ -62,7 +43,7 @@ library(SingleCellExperiment)
 
 Pollen <- PollenGliaData()
 ann <- colData(Pollen)[["Inferred Cell Type"]]
-#sce <- SingleCellExperiment(assays = list(counts = pollen), colData=ann)
+#sce <- SingleCellExperi2ment(assays = list(counts = pollen), colData=ann)
 scens <- CreateScEnsemble(Pollen,ann)
 
 ```
@@ -120,8 +101,3 @@ scens <- ensemble_clustering(scens)
 
 ```
 
-```{r}
-
-plot_results <- ensemble_clustering(scens)
-
-```

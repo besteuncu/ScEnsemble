@@ -78,9 +78,9 @@
 #' }
 #'
 #' @import ggplot2
-#' @import dplyr
+#' @importFrom dplyr select filter mutate group_by summarise arrange bind_rows
 #' @import tidyr
-#' @import gridExtra
+#' @importFrom gridExtra grid.arrange
 #' @import RColorBrewer
 #' @import viridis
 #' @import corrplot

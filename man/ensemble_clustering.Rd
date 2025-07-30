@@ -4,25 +4,16 @@
 \alias{ensemble_clustering}
 \title{Ensemble Clustering Algorithms}
 \usage{
-ensemble_clustering(
-  object,
-  expression_data,
-  true_labels = NULL,
-  H_matrix,
-  k = NULL,
-  ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
-    "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
-  ...
-)
+ensemble_clustering(object, ...)
 }
 \arguments{
 \item{object}{ScEnsemble object with completed hypergraph lists}
 
+\item{...}{Additional arguments}
+
 \item{k}{Number of clusters (if NULL, will be estimated)}
 
 \item{ensemble_methods}{Character vector of ensemble methods to apply}
-
-\item{...}{Additional arguments}
 }
 \value{
 ScEnsemble object with ensemble_results slot filled

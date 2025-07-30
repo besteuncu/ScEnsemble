@@ -4,14 +4,14 @@
 \alias{calculate_all_validation_indices}
 \title{Calculate Validation Indices}
 \usage{
-calculate_all_validation_indices(object, verbose = TRUE, ...)
+calculate_all_validation_indices(object, ...)
 }
 \arguments{
 \item{object}{ScEnsemble object with completed individual algorithms}
 
-\item{verbose}{Logical, whether to print progress messages}
-
 \item{...}{Additional arguments}
+
+\item{verbose}{Logical, whether to print progress messages}
 }
 \value{
 ScEnsemble object with validation_indices slot filled

@@ -14,6 +14,7 @@
 #' scens <- generate_all_hypergraphs(scens)
 setGeneric("generate_all_hypergraphs", function(object, verbose = TRUE) standardGeneric("generate_all_hypergraphs"))
 
+#' @export
 setMethod("generate_all_hypergraphs", "ScEnsemble", function(object, verbose = TRUE) {
   if (verbose) message("Generating hypergraph matrices...")
   
