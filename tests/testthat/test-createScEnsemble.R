@@ -1,4 +1,4 @@
-test_that("CreateScEnsemble works with ZeiselBrainData subset", {
+test_that("CreateScEnsemble works with Pollen subset", {
   data <- create_test_data()
   
   expect_no_error({

@@ -27,8 +27,11 @@ For demonstration purposes, this `ScEnsemble` algorithm tutorial utilizes an exp
 
 ```{r, message=FALSE, warning=FALSE}
 
-library(SingleCellExperiment)
-library(scRNAseq)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ScEnsemble")
+
 library(ScEnsemble)
 
 ```
@@ -43,7 +46,6 @@ library(SingleCellExperiment)
 
 Pollen <- PollenGliaData()
 ann <- colData(Pollen)[["Inferred Cell Type"]]
-#sce <- SingleCellExperi2ment(assays = list(counts = pollen), colData=ann)
 scens <- CreateScEnsemble(Pollen,ann)
 
 ```
