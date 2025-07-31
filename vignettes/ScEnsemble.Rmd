@@ -108,6 +108,8 @@ The resulting cluster labels represent a sophisticated synthesis that transcends
 scens <- ensemble_clustering(scens)
 
 ```
+
+
 ```{r sessionInfo, echo=FALSE}
 sessionInfo()
 ```
