@@ -1,10 +1,12 @@
 ---
-title: "ScEnsemble package manual"
+title: "ScEnsemble: Single Cell Ensemble Analysis"
 author: "Beste Uncu"
 date: "`r Sys.Date()`"
+package: ScEnsemble
 output:
     BiocStyle::html_document:
         toc: true
+        toc_float: true
 vignette: >
   %\VignetteIndexEntry{ScEnsemble}
   %\VignetteEngine{knitr::rmarkdown}
@@ -13,9 +15,13 @@ vignette: >
 
 ```{r knitr-options, echo=FALSE, message=FALSE, warning=FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
+    collapse = TRUE,
+    comment = "#>",
+    fig.width = 7,
+    fig.height = 5,
+    dpi = 150
 )
+library(BiocStyle)
 ```
 
 # Introduction
@@ -101,4 +107,7 @@ The resulting cluster labels represent a sophisticated synthesis that transcends
 
 scens <- ensemble_clustering(scens)
 
+```
+```{r sessionInfo, echo=FALSE}
+sessionInfo()
 ```

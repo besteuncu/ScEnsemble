@@ -51,6 +51,15 @@ setClass("EnsembleResults",
            ensemble_quality = "list"
          ))
 
+#' The numericORNULL Class
+#'
+#' An S4 class union that allows a slot to contain either a numeric vector or NULL.
+#'
+#' @name numericORNULL-class
+#' @importFrom methods setClass setClassUnion
+#' @export
+setClassUnion("numericORNULL", c("numeric", "NULL"))
+
 #' ScEnsemble Class
 #'
 #' An S4 class to store data and results for ensemble clustering
@@ -62,9 +71,7 @@ setClass("EnsembleResults",
 #' @slot hypergraphs A list of hypergraph representations
 #' @slot ensemble_results A list of ensemble clustering results
 #' 
-#' @importFrom methods setClass setClassUnion
-#'
-setClassUnion("numericORNULL", c("numeric", "NULL"))
+#' @rdname ScEnsemble-class
 #' @export
 setClass("ScEnsemble",
          slots = list(

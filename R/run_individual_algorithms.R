@@ -54,7 +54,8 @@
 #'
 #' @export
 setMethod("run_individual_algorithms", "ScEnsemble", 
-          function(object, 
+          function(object, data,
+                   true_labels=NULL,
                    algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
                    seed = 42,
                    verbose = TRUE,
@@ -170,7 +171,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       tsne_result <- Rtsne(pca_data, dims = 2, perplexity = 30,
                            check_duplicates = FALSE)
       tsne_data <- tsne_result$Y
-      gap_stat <- clusGap(tsne_data, FUN = kmeans, nstart = 25, K.max = min(15, nrow(tsne_data)-1), B = 50)
+      gap_stat <- clusGap(tsne_data, FUNcluster = kmeans, nstart = 25, K.max = min(15, nrow(tsne_data)-1), B = 50)
       optimal_k <- with(gap_stat, maxSE(Tab[, "gap"], Tab[, "SE.sim"]))
       set.seed(seed)
       kmeans_result <- kmeans(tsne_data, centers = optimal_k, nstart = 25)

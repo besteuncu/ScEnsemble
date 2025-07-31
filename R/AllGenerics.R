@@ -16,7 +16,8 @@
 #' @return ScEnsemble object with individual_results slot filled
 #' @export
 setGeneric("run_individual_algorithms", 
-           function(object, 
+           function(object, data,
+                    true_labels=NULL,
                     algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
                     seed = 42,
                     verbose = TRUE,
@@ -47,13 +48,14 @@ setGeneric("calculate_all_validation_indices",
 #' @description Generate weighted hypergraph representations from clustering results
 #' 
 #' @param object ScEnsemble object with completed validation indices
-#' @param algorithms Character vector of algorithms to include
+#' @param verbose Logical; whether to print progress messages (default is TRUE)
 #' @param ... Additional arguments
 #' 
 #' @return ScEnsemble object with hypergraphs slot filled
 #' @export
 setGeneric("generate_all_hypergraphs", 
-           function(object, verbose = TRUE)
+           function(object, verbose = TRUE,
+                    ...)
              standardGeneric("generate_all_hypergraphs"))
 
 #' @rdname ensemble_clustering
@@ -75,5 +77,6 @@ setGeneric("ensemble_clustering",
                     H_matrix,
                     k = NULL,
                     ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
-                                         "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"))
+                                         "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+                    ...)
              standardGeneric("ensemble_clustering"))

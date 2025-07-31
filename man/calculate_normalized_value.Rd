@@ -34,7 +34,7 @@ normalization parameters:
 \item \strong{inverse_sum}: \code{(1 / raw_value) / sum_val} for DB
 }
 
-All normalized values are scaled to \link{0, 1} where higher values indicate
+All normalized values are scaled to (0, 1) where higher values indicate
 better clustering performance.
 }
 \seealso{

@@ -8,11 +8,12 @@
 #' 
 #' @param object A \code{ScEnsemble} object containing individual clustering results and validation metrics
 #' @param verbose Logical; whether to print progress messages (default is TRUE)
+#' @param ... Additional arguments
 #'
 #' @return An updated \code{ScEnsemble} object with added slot \code{@hypergraphs} storing the H and HH matrices.
 #' @export
 setMethod("generate_all_hypergraphs", "ScEnsemble", 
-          function(object, verbose = TRUE) {
+          function(object, verbose = TRUE, ...) {
             
   if (verbose) message("Generating hypergraph matrices...")
   

@@ -7,6 +7,8 @@
 \usage{
 run_individual_algorithms(
   object,
+  data,
+  true_labels = NULL,
   algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
   seed = 42,
   verbose = TRUE,
@@ -16,6 +18,8 @@ run_individual_algorithms(
 
 \S4method{run_individual_algorithms}{ScEnsemble}(
   object,
+  data,
+  true_labels = NULL,
   algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
   seed = 42,
   verbose = TRUE,
@@ -25,6 +29,12 @@ run_individual_algorithms(
 }
 \arguments{
 \item{object}{ScEnsemble object}
+
+\item{data}{A numeric matrix or data frame containing single-cell expression data.
+Rows represent genes and columns represent cells.}
+
+\item{true_labels}{Optional vector of true cluster labels for validation.
+If provided, Adjusted Rand Index (ARI) will be calculated.}
 
 \item{algorithms}{Character vector specifying which algorithms to run.
 Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID").}
@@ -37,12 +47,6 @@ Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID
 Default is 1.}
 
 \item{...}{Additional arguments}
-
-\item{data}{A numeric matrix or data frame containing single-cell expression data.
-Rows represent genes and columns represent cells.}
-
-\item{true_labels}{Optional vector of true cluster labels for validation.
-If provided, Adjusted Rand Index (ARI) will be calculated.}
 }
 \value{
 ScEnsemble object with individual_results slot filled

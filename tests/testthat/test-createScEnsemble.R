@@ -1,4 +1,4 @@
-test_that("CreateScEnsemble works with Pollen subset", {
+test_that("CreateScEnsemble works with Pollen", {
   Pollen <- PollenGliaData()
   ann <- colData(Pollen)[["Inferred Cell Type"]]
   

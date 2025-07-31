@@ -201,7 +201,7 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
 #'   \item \strong{inverse_sum}: \code{(1 / raw_value) / sum_val} for DB
 #' }
 #'
-#' All normalized values are scaled to [0, 1] where higher values indicate 
+#' All normalized values are scaled to (0, 1) where higher values indicate 
 #' better clustering performance.
 #'
 #' @seealso \code{\link{perform_global_normalization}}

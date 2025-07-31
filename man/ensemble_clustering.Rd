@@ -12,7 +12,8 @@ ensemble_clustering(
   H_matrix,
   k = NULL,
   ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
-    "MCLA_Louvain", "MCLA_Leiden", "HGSC")
+    "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+  ...
 )
 
 \S4method{ensemble_clustering}{ScEnsemble}(
@@ -22,7 +23,8 @@ ensemble_clustering(
   H_matrix,
   k = NULL,
   ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
-    "MCLA_Louvain", "MCLA_Leiden", "HGSC")
+    "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+  ...
 )
 }
 \arguments{

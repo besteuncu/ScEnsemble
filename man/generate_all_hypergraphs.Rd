@@ -5,16 +5,14 @@
 \alias{generate_all_hypergraphs,ScEnsemble-method}
 \title{Generate Hypergraphs}
 \usage{
-generate_all_hypergraphs(object, verbose = TRUE)
+generate_all_hypergraphs(object, verbose = TRUE, ...)
 
-\S4method{generate_all_hypergraphs}{ScEnsemble}(object, verbose = TRUE)
+\S4method{generate_all_hypergraphs}{ScEnsemble}(object, verbose = TRUE, ...)
 }
 \arguments{
 \item{object}{A \code{ScEnsemble} object containing individual clustering results and validation metrics}
 
 \item{verbose}{Logical; whether to print progress messages (default is TRUE)}
-
-\item{algorithms}{Character vector of algorithms to include}
 
 \item{...}{Additional arguments}
 }

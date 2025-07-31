@@ -3,23 +3,7 @@
 \docType{class}
 \name{numericORNULL-class}
 \alias{numericORNULL-class}
-\title{ScEnsemble Class}
+\title{The numericORNULL Class}
 \description{
-An S4 class to store data and results for ensemble clustering
+An S4 class union that allows a slot to contain either a numeric vector or NULL.
 }
-\section{Slots}{
-
-\describe{
-\item{\code{sce}}{A SingleCellExperiment object}
-
-\item{\code{annotation}}{A character vector of true labels}
-
-\item{\code{individual_results}}{A list of individual clustering outputs}
-
-\item{\code{validation_metrics}}{A list of internal validation scores}
-
-\item{\code{hypergraphs}}{A list of hypergraph representations}
-
-\item{\code{ensemble_results}}{A list of ensemble clustering results}
-}}
-
