@@ -1,9 +1,7 @@
-test_that("CreateScEnsemble works with Pollen", {
-  Pollen <- PollenGliaData()
-  ann <- colData(Pollen)[["Inferred Cell Type"]]
-  
+test_that("CreateScEnsemble works with Pollen subset", {
+
   expect_no_error({
-    scens <- CreateScEnsemble(Pollen, ann)
+    scens <- CreateScEnsemble(test_pollen, test_labels)
   })
   
   expect_s4_class(scens, "ScEnsemble")

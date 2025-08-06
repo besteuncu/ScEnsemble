@@ -28,3 +28,19 @@ This function computes hypergraph incidence matrices (H) and pairwise co-associa
 from individual clustering algorithm results. It also computes weighted versions of these matrices
 based on internal validation metrics.
 }
+\examples{
+# Load required packages
+library(scRNAseq)
+library(SingleCellExperiment)
+
+# Load example data and create ScEnsemble object
+Pollen <- PollenGliaData()
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+scens <- CreateScEnsemble(Pollen, ann)
+
+# Run the pipeline up to hypergraph generation
+scens <- run_individual_algorithms(scens)
+scens <- calculate_all_validation_indices(scens)
+scens <- generate_all_hypergraphs(scens)
+
+}

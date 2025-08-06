@@ -37,6 +37,34 @@ normalization parameters:
 All normalized values are scaled to (0, 1) where higher values indicate
 better clustering performance.
 }
+\examples{
+# First create normalization parameters
+raw_values <- list(
+  silhouette = c(0.7, 0.5, 0.8),
+  ch = c(120.5, 95.2, 150.3),
+  db = c(0.8, 1.2, 0.6),
+  dunn = c(0.25, 0.18, 0.32)
+)
+norm_params <- perform_global_normalization(raw_values)
+
+# Normalize individual values
+norm_sil <- calculate_normalized_value(0.7, "silhouette", norm_params)
+norm_ch <- calculate_normalized_value(120.5, "ch", norm_params)
+norm_db <- calculate_normalized_value(0.8, "db", norm_params)
+norm_dunn <- calculate_normalized_value(0.25, "dunn", norm_params)
+
+# View results
+cat("Normalized values:\n")
+cat("Silhouette:", norm_sil, "\n")
+cat("CH:", norm_ch, "\n") 
+cat("DB:", norm_db, "\n")
+cat("Dunn:", norm_dunn, "\n")
+
+# Handle NA values
+norm_na <- calculate_normalized_value(NA, "silhouette", norm_params)
+cat("NA value result:", norm_na, "\n")
+
+}
 \seealso{
 \code{\link{perform_global_normalization}}
 }

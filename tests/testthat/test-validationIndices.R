@@ -1,7 +1,6 @@
 test_that("calculate_all_validation_indices works", {
-  Pollen <- PollenGliaData()
-  ann <- colData(Pollen)[["Inferred Cell Type"]]
-  scens <- CreateScEnsemble(Pollen, ann)
+
+  scens <- CreateScEnsemble(test_pollen, test_labels)
   scens <- run_individual_algorithms(scens)
   
   expect_no_error({

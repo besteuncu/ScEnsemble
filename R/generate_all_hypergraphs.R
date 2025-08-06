@@ -11,6 +11,22 @@
 #' @param ... Additional arguments
 #'
 #' @return An updated \code{ScEnsemble} object with added slot \code{@hypergraphs} storing the H and HH matrices.
+#' 
+#' @examples
+#' # Load required packages
+#' library(scRNAseq)
+#' library(SingleCellExperiment)
+#' 
+#' # Load example data and create ScEnsemble object
+#' Pollen <- PollenGliaData()
+#' ann <- colData(Pollen)[["Inferred Cell Type"]]
+#' scens <- CreateScEnsemble(Pollen, ann)
+#' 
+#' # Run the pipeline up to hypergraph generation
+#' scens <- run_individual_algorithms(scens)
+#' scens <- calculate_all_validation_indices(scens)
+#' scens <- generate_all_hypergraphs(scens)
+#' 
 #' @export
 setMethod("generate_all_hypergraphs", "ScEnsemble", 
           function(object, verbose = TRUE, ...) {
@@ -60,10 +76,11 @@ setMethod("generate_all_hypergraphs", "ScEnsemble",
     HH_weighted <- H_weighted %*% t(H_weighted)
     
     
-    total_weight <- sum(sapply(algorithms, function(algo) {
+    total_weight <- sum(vapply(algorithms, function(algo) {
       w <- weight_list[[algo]][[metric_name]]
       if (is.null(w) || is.na(w) || !is.numeric(w)) 0 else w
-    }), na.rm = TRUE)
+    }, FUN.VALUE = numeric(1)), na.rm = TRUE)
+    
     
     if (total_weight > 0) {
       HH_weighted <- HH_weighted / total_weight

@@ -7,7 +7,8 @@
 #' @description Apply multiple individual clustering algorithms to single-cell data
 #' 
 #' @param object ScEnsemble object
-#' @param algorithms Character vector of algorithms to run. Options: "SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"
+#' @param algorithms Character vector of algorithms to run. 
+#'        Options: "SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"
 #' @param seed Random seed for reproducibility
 #' @param verbose Logical, whether to print progress messages
 #' @param n_cores Number of cores to use for parallel processing

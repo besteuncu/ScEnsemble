@@ -43,3 +43,20 @@ The function calculates the following validation indices:
 \item \strong{Dunn}: Ratio of minimum inter-cluster distance to maximum intra-cluster distance.
 }
 }
+\examples{
+# Load required packages
+library(scRNAseq)
+library(SingleCellExperiment)
+
+# Load example data and create ScEnsemble object
+Pollen <- PollenGliaData()
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+scens <- CreateScEnsemble(Pollen, ann)
+
+# Run individual algorithms first
+scens <- run_individual_algorithms(scens)
+
+# Calculate validation indices
+scens <- calculate_all_validation_indices(scens)
+
+}

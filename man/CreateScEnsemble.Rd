@@ -17,3 +17,18 @@ A ScEnsemble S4 object
 \description{
 Initializes a ScEnsemble object from a SingleCellExperiment and optional annotation vector.
 }
+\examples{
+# Load required packages
+library(scRNAseq)
+library(SingleCellExperiment)
+
+# Load example data
+Pollen <- PollenGliaData()
+
+# Extract annotations if available
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+
+# Create ScEnsemble object
+scens <- CreateScEnsemble(Pollen, ann)
+
+}

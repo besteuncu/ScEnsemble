@@ -82,3 +82,20 @@ Quality indices calculated include:
 \item Dunn index
 }
 }
+\examples{
+# Load required packages
+library(scRNAseq)
+library(SingleCellExperiment)
+
+# Complete ScEnsemble pipeline
+Pollen <- PollenGliaData()
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+scens <- CreateScEnsemble(Pollen, ann)
+
+# Run full pipeline
+scens <- run_individual_algorithms(scens)
+scens <- calculate_all_validation_indices(scens)
+scens <- generate_all_hypergraphs(scens)
+scens <- ensemble_clustering(scens)
+
+}

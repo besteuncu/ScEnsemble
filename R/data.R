@@ -16,7 +16,7 @@
 #' @examples
 #' data(Pollen)
 #' dim(Pollen)
-#' \dontrun{
+#' \donttest{
 #' # colData function requires SummarizedExperiment to be loaded
 #' library(SummarizedExperiment)
 #' table(colData(Pollen)$"Inferred Cell Type")

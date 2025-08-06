@@ -27,6 +27,25 @@
 #' Individual index calculations are wrapped in \code{tryCatch} to handle errors
 #' gracefully and continue processing even if one index fails.
 #'
+#' @examples
+#' # Generate sample data
+#' set.seed(123)
+#' data <- matrix(rnorm(100), ncol = 2)
+#' 
+#' # Create cluster assignments
+#' clustering <- c(rep(1, 25), rep(2, 25))
+#' 
+#' # Calculate metrics
+#' metrics <- calculate_single_algorithm_metrics(
+#'   data = data, 
+#'   clustering = clustering, 
+#'   method_name = "kmeans",
+#'   verbose = TRUE
+#' )
+#' 
+#' # View results
+#' print(metrics)
+#'
 #' @importFrom cluster silhouette
 #' @importFrom fpc calinhara
 #' @importFrom clusterSim index.DB
@@ -40,7 +59,7 @@ calculate_single_algorithm_metrics <- function(data, clustering, method_name, ve
   unique_clusters <- unique(clustering)
   if (length(unique_clusters) < 2) {
     if (verbose) {
-      cat(sprintf("  %s: Only %d unique cluster(s), returning NA values\n", 
+      message(sprintf("  %s: Only %d unique cluster(s), returning NA values\n", 
                   method_name, length(unique_clusters)))
     }
     return(list(silhouette = NA, ch = NA, db = NA, dunn = NA))
@@ -49,7 +68,7 @@ calculate_single_algorithm_metrics <- function(data, clustering, method_name, ve
   data_matrix <- as.matrix(data)
   
   if (verbose) {
-    cat(sprintf("  %s: Processing %d points with %d clusters\n", 
+    message(sprintf("  %s: Processing %d points with %d clusters\n", 
                 method_name, nrow(data_matrix), length(unique_clusters)))
   }
   
@@ -57,14 +76,14 @@ calculate_single_algorithm_metrics <- function(data, clustering, method_name, ve
     sil <- silhouette(clustering, dist(data_matrix))
     mean(sil[, 3], na.rm = TRUE)
   }, error = function(e) {
-    if (verbose) cat(sprintf("    Silhouette calculation failed: %s\n", e$message))
+    if (verbose) message(sprintf("    Silhouette calculation failed: %s\n", e$message))
     NA
   })
   
   ch_index <- tryCatch({
     calinhara(data_matrix, clustering, cn = length(unique(clustering)))
   }, error = function(e) {
-    if (verbose) cat(sprintf("    CH calculation failed: %s\n", e$message))
+    if (verbose) message(sprintf("    CH calculation failed: %s\n", e$message))
     NA
   })
   
@@ -72,14 +91,14 @@ calculate_single_algorithm_metrics <- function(data, clustering, method_name, ve
     result <- clusterSim::index.DB(data_matrix, clustering, centrotypes = "centroids")
     db_val <- result$DB
   }, error = function(e) {
-    if (verbose) cat(sprintf("    DB calculation failed: %s\n", e$message))
+    if (verbose) message(sprintf("    DB calculation failed: %s\n", e$message))
     NA
   })
   
   dunn_index <- tryCatch({
     dunn(dist(data_matrix), clustering)
   }, error = function(e) {
-    if (verbose) cat(sprintf("    Dunn calculation failed: %s\n", e$message))
+    if (verbose) message(sprintf("    Dunn calculation failed: %s\n", e$message))
     NA
   })
   
@@ -125,9 +144,23 @@ calculate_single_algorithm_metrics <- function(data, clustering, method_name, ve
 #'   \item \strong{Dunn}: Sum-based normalization (higher is better)
 #' }
 #'
+#' @examples
+#' # Create sample raw validation values from multiple methods
+#' raw_values <- list(
+#'   silhouette = c(0.7, 0.5, 0.8, 0.6),
+#'   ch = c(120.5, 95.2, 150.3, 80.1),
+#'   db = c(0.8, 1.2, 0.6, 1.5),
+#'   dunn = c(0.25, 0.18, 0.32, 0.15)
+#' )
+#' 
+#' # Calculate normalization parameters
+#' norm_params <- perform_global_normalization(raw_values, verbose = TRUE)
+#' 
+#' # View normalization parameters
+#' str(norm_params)
+#'
 #' @keywords internal
 #' @export
-
 perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
   
   normalization_params <- list()
@@ -139,7 +172,7 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
       min_val = -1,
       max_val = 1
     )
-    if (verbose) cat("  Silhouette: Using min-max normalization with shift\n")
+    if (verbose) message("  Silhouette: Using min-max normalization with shift\n")
   }
   
   ch_values <- all_raw_values$ch[!is.na(all_raw_values$ch)]
@@ -149,7 +182,7 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
       type = "sum_based",
       sum_val = ch_sum
     )
-    if (verbose) cat("  CH: Using sum-based normalization\n")
+    if (verbose) message("  CH: Using sum-based normalization\n")
   }
   
   db_values <- all_raw_values$db[!is.na(all_raw_values$db) & all_raw_values$db > 0]
@@ -160,7 +193,7 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
       type = "inverse_sum",
       sum_val = inv_db_sum
     )
-    if (verbose) cat("  DB: Using inverse sum normalization\n")
+    if (verbose) message("  DB: Using inverse sum normalization\n")
   }
   
   dunn_values <- all_raw_values$dunn[!is.na(all_raw_values$dunn)]
@@ -170,7 +203,7 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
       type = "sum_based",
       sum_val = dunn_sum
     )
-    if (verbose) cat("  Dunn: Using sum-based normalization\n")
+    if (verbose) message("  Dunn: Using sum-based normalization\n")
   }
   
   return(normalization_params)
@@ -203,6 +236,33 @@ perform_global_normalization <- function(all_raw_values, verbose = FALSE) {
 #'
 #' All normalized values are scaled to (0, 1) where higher values indicate 
 #' better clustering performance.
+#'
+#' @examples
+#' # First create normalization parameters
+#' raw_values <- list(
+#'   silhouette = c(0.7, 0.5, 0.8),
+#'   ch = c(120.5, 95.2, 150.3),
+#'   db = c(0.8, 1.2, 0.6),
+#'   dunn = c(0.25, 0.18, 0.32)
+#' )
+#' norm_params <- perform_global_normalization(raw_values)
+#' 
+#' # Normalize individual values
+#' norm_sil <- calculate_normalized_value(0.7, "silhouette", norm_params)
+#' norm_ch <- calculate_normalized_value(120.5, "ch", norm_params)
+#' norm_db <- calculate_normalized_value(0.8, "db", norm_params)
+#' norm_dunn <- calculate_normalized_value(0.25, "dunn", norm_params)
+#' 
+#' # View results
+#' cat("Normalized values:\n")
+#' cat("Silhouette:", norm_sil, "\n")
+#' cat("CH:", norm_ch, "\n") 
+#' cat("DB:", norm_db, "\n")
+#' cat("Dunn:", norm_dunn, "\n")
+#' 
+#' # Handle NA values
+#' norm_na <- calculate_normalized_value(NA, "silhouette", norm_params)
+#' cat("NA value result:", norm_na, "\n")
 #'
 #' @seealso \code{\link{perform_global_normalization}}
 #'

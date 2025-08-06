@@ -42,4 +42,20 @@ Different normalization strategies are applied based on index properties:
 \item \strong{Dunn}: Sum-based normalization (higher is better)
 }
 }
+\examples{
+# Create sample raw validation values from multiple methods
+raw_values <- list(
+  silhouette = c(0.7, 0.5, 0.8, 0.6),
+  ch = c(120.5, 95.2, 150.3, 80.1),
+  db = c(0.8, 1.2, 0.6, 1.5),
+  dunn = c(0.25, 0.18, 0.32, 0.15)
+)
+
+# Calculate normalization parameters
+norm_params <- perform_global_normalization(raw_values, verbose = TRUE)
+
+# View normalization parameters
+str(norm_params)
+
+}
 \keyword{internal}

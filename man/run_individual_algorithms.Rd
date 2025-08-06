@@ -39,7 +39,8 @@ If provided, Adjusted Rand Index (ARI) will be calculated.}
 \item{algorithms}{Character vector specifying which algorithms to run.
 Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID").}
 
-\item{seed}{Integer value for random seed to ensure reproducibility. Default is 42.}
+\item{seed}{Integer value for random seed to ensure reproducibility. Default is 42.
+Note: Users should set the seed externally before calling this function.}
 
 \item{verbose}{Logical indicating whether to print progress messages. Default is TRUE.}
 
@@ -79,4 +80,20 @@ The function supports the following clustering algorithms:
 \item Monocle: Trajectory-based clustering
 \item RaceID: Rare Cell Identification
 }
+}
+\examples{
+# Load required packages
+library(scRNAseq)
+library(SingleCellExperiment)
+
+# Load example data and create ScEnsemble object
+Pollen <- PollenGliaData()
+ann <- colData(Pollen)[["Inferred Cell Type"]]
+scens <- CreateScEnsemble(Pollen, ann)
+
+# Run individual clustering algorithms
+# Set seed for reproducibility and run algorithms
+set.seed(42)
+scens <- run_individual_algorithms(scens)
+
 }

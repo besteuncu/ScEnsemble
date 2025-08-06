@@ -53,6 +53,21 @@
 #' @importFrom SummarizedExperiment assay
 #' @importFrom stats as.dist
 #'
+#' @examples
+#' # Load required packages
+#' library(scRNAseq)
+#' library(SingleCellExperiment)
+#' 
+#' # Complete ScEnsemble pipeline
+#' Pollen <- PollenGliaData()
+#' ann <- colData(Pollen)[["Inferred Cell Type"]]
+#' scens <- CreateScEnsemble(Pollen, ann)
+#' 
+#' # Run full pipeline
+#' scens <- run_individual_algorithms(scens)
+#' scens <- calculate_all_validation_indices(scens)
+#' scens <- generate_all_hypergraphs(scens)
+#' scens <- ensemble_clustering(scens)
 #'
 #' @export
 setMethod("ensemble_clustering", "ScEnsemble", 
@@ -211,24 +226,28 @@ setMethod("ensemble_clustering", "ScEnsemble",
     clusters <- as.numeric(factor(clusters))  
     unique_clusters <- unique(clusters)
     n_clusters <- length(unique_clusters)
-
-    centers <- t(sapply(unique_clusters, function(k) colMeans(data[clusters == k, , drop = FALSE])))
-    within_scatter <- sapply(unique_clusters, function(k) {
+    
+    centers <- t(vapply(unique_clusters, function(k) {
+      colMeans(data[clusters == k, , drop = FALSE])
+    }, FUN.VALUE = numeric(ncol(data))))  
+    
+    within_scatter <- vapply(unique_clusters, function(k) {
       pts <- data[clusters == k, , drop = FALSE]
       if (nrow(pts) < 2) return(0)
       mean(sqrt(rowSums((pts - matrix(colMeans(pts), nrow(pts), ncol(data), byrow = TRUE))^2)))
-    })
-
+    }, FUN.VALUE = numeric(1))  
+    
     between_distances <- as.matrix(dist(centers))
-
-    db_index <- sapply(1:n_clusters, function(i) {
-      max(sapply(setdiff(1:n_clusters, i), function(j) {
+    
+    db_index <- vapply(1:n_clusters, function(i) {
+      max(vapply(setdiff(1:n_clusters, i), function(j) {
         (within_scatter[i] + within_scatter[j]) / between_distances[i, j]
-      }))
-    })
-
+      }, FUN.VALUE = numeric(1)))  
+    }, FUN.VALUE = numeric(1)) 
+    
     mean(db_index)
   }
+  
 
 
 

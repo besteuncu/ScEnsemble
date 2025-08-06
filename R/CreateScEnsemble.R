@@ -9,6 +9,21 @@
 #' @import scRNAseq
 #'
 #' @return A ScEnsemble S4 object
+#' 
+#' @examples
+#' # Load required packages
+#' library(scRNAseq)
+#' library(SingleCellExperiment)
+#' 
+#' # Load example data
+#' Pollen <- PollenGliaData()
+#' 
+#' # Extract annotations if available
+#' ann <- colData(Pollen)[["Inferred Cell Type"]]
+#' 
+#' # Create ScEnsemble object
+#' scens <- CreateScEnsemble(Pollen, ann)
+#' 
 #' @export
 CreateScEnsemble <- function(sce, annotation = NULL) {
   if (!is(sce, "SingleCellExperiment")) {

@@ -12,6 +12,7 @@
 #' @param algorithms Character vector specifying which algorithms to run.
 #'   Default is c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID").
 #' @param seed Integer value for random seed to ensure reproducibility. Default is 42.
+#'   Note: Users should set the seed externally before calling this function.
 #' @param verbose Logical indicating whether to print progress messages. Default is TRUE.
 #' @param n_cores Integer specifying number of cores to use for parallel processing where applicable.
 #'   Default is 1.
@@ -52,6 +53,21 @@
 #' @importFrom methods is new
 #' @importFrom SummarizedExperiment assay assayNames rowData<-
 #'
+#' @examples
+#' # Load required packages
+#' library(scRNAseq)
+#' library(SingleCellExperiment)
+#' 
+#' # Load example data and create ScEnsemble object
+#' Pollen <- PollenGliaData()
+#' ann <- colData(Pollen)[["Inferred Cell Type"]]
+#' scens <- CreateScEnsemble(Pollen, ann)
+#' 
+#' # Run individual clustering algorithms
+#' # Set seed for reproducibility and run algorithms
+#' set.seed(42)
+#' scens <- run_individual_algorithms(scens)
+#'
 #' @export
 setMethod("run_individual_algorithms", "ScEnsemble", 
           function(object, data,
@@ -86,11 +102,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
   if (!all(algorithms %in% available_algorithms)) {
     stop("Invalid algorithm(s) specified. Available algorithms: ", paste(available_algorithms, collapse = ", "))
   }
-
-
-  # Set seed for reproducibility
-  set.seed(seed)
-
+  
   # Initialize result lists
   clustering_results <- list()
   ari_scores <- list()
@@ -101,7 +113,6 @@ setMethod("run_individual_algorithms", "ScEnsemble",
   # Define algorithm functions
   algorithm_functions <- list(
     SC3 = function(data) {
-      set.seed(seed)
       sce <- SingleCellExperiment(
         assays = list(counts = as.matrix(data),
                       logcounts = log2(as.matrix(data) + 1))
@@ -167,13 +178,11 @@ setMethod("run_individual_algorithms", "ScEnsemble",
     TSNE_Kmeans = function(data) {
       pca_result <- prcomp(t(data))
       pca_data <- pca_result$x[, 1:min(50, ncol(pca_result$x))]
-      set.seed(seed)
       tsne_result <- Rtsne(pca_data, dims = 2, perplexity = 30,
                            check_duplicates = FALSE)
       tsne_data <- tsne_result$Y
       gap_stat <- clusGap(tsne_data, FUNcluster = kmeans, nstart = 25, K.max = min(15, nrow(tsne_data)-1), B = 50)
       optimal_k <- with(gap_stat, maxSE(Tab[, "gap"], Tab[, "SE.sim"]))
-      set.seed(seed)
       kmeans_result <- kmeans(tsne_data, centers = optimal_k, nstart = 25)
       tsne_kmeans_labels <- kmeans_result$cluster
       return(list(labels = tsne_kmeans_labels, data = tsne_data))
@@ -211,7 +220,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
   for (alg_name in algorithms) {
     if (verbose) {
       message("------------------------------------------------")
-      message(paste("Running algorithm:", alg_name))
+      message("Running algorithm:", alg_name)
     }
 
     func <- algorithm_functions[[alg_name]]
@@ -229,15 +238,15 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       errors[[alg_name]] <- NA
 
       if (verbose) {
-        message(paste(alg_name, "completed successfully. Runtime:", runtime, "seconds"))
+        message(alg_name, "completed successfully. Runtime:", runtime, "seconds")
         if (!is.null(true_labels)) {
-          message(paste("ARI:", round(ari_val, 4)))
+          message("ARI:", round(ari_val, 4))
         }
       }
 
     }, error = function(e) {
       if (verbose) {
-        message(paste("ERROR in", alg_name, ":", e$message))
+        message("ERROR in", alg_name, ":", e$message)
       }
 
       clustering_results[[alg_name]] <- NA

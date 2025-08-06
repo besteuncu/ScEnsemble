@@ -30,19 +30,6 @@ Single-cell Ensemble Clustering (`ScEnsemble`) is a hypergraph-based ensemble cl
 
 For demonstration purposes, this `ScEnsemble` algorithm tutorial utilizes an expression matrix. The dataset (`Pollen`) represents FPKM (Fragments Per Kilobase Million) gene expression levels from 367 cells obtained during human brain developmental processes. The dataset is prepared in `SingleCellExperiment` format and sourced from the corresponding repository. The column metadata contains comprehensive information regarding anatomical regions, sample origins, putative cell types, and alignment-related statistics. In the extracted dataset, rows represent genes while columns represent individual cells.
 
-
-```{r, message=FALSE, warning=FALSE}
-
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-
-BiocManager::install("ScEnsemble")
-
-library(ScEnsemble)
-
-```
-
-
 If you intend to use your own datasets, they must first be prepared as `SingleCellExperiment` objects. When annotations are available, they should be incorporated under `colData`. The ScEnsemble framework utilizes the `CreateScEnsemble` function to generate the primary object structure, and all subsequent functions operate within this unified S4 object architecture.
 
 ```{r}
@@ -67,6 +54,7 @@ Clustering algorithms with distinct methodological approaches are applied indivi
 scens <- run_individual_algorithms(scens)
 
 ```
+
 # Calculate All Validation Indices
 
 Following the execution of individual clustering algorithms through `run_individual_algorithms`, this step computes comprehensive validation metrics using the cluster labels and processed data from each algorithm. The validation indices including `Silhouette`, `Calinski-Harabasz`, `Davies-Bouldin`, and `Dunn` are calculated using the embedding data and clustering results from each method. Each index is normalized according to its specific characteristics to ensure comparability across different scales. Additionally, an average index value is computed by taking the mean of all individual validation indices, providing a comprehensive performance measure for each clustering approach.

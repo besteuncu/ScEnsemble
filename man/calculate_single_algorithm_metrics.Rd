@@ -44,4 +44,24 @@ If fewer clusters are found, all indices return \code{NA}.
 Individual index calculations are wrapped in \code{tryCatch} to handle errors
 gracefully and continue processing even if one index fails.
 }
+\examples{
+# Generate sample data
+set.seed(123)
+data <- matrix(rnorm(100), ncol = 2)
+
+# Create cluster assignments
+clustering <- c(rep(1, 25), rep(2, 25))
+
+# Calculate metrics
+metrics <- calculate_single_algorithm_metrics(
+  data = data, 
+  clustering = clustering, 
+  method_name = "kmeans",
+  verbose = TRUE
+)
+
+# View results
+print(metrics)
+
+}
 \keyword{internal}
