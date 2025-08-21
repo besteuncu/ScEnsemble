@@ -300,3 +300,76 @@ calculate_normalized_value <- function(raw_value, metric_name, normalization_par
          0
   )
 }
+
+
+#' Package startup function
+#' 
+#' This function is called when the package is loaded and provides information
+#' about optional dependencies that may not be installed.
+#' 
+#' @param libname Character string giving the library directory
+#' @param pkgname Character string giving the package name
+#' @return Invisible NULL
+#' @keywords internal
+.onAttach <- function(libname, pkgname) {
+  # cidr check
+  if (!requireNamespace("cidr", quietly = TRUE)) {
+    packageStartupMessage(
+      "Note: 'cidr' is not installed. Some clustering methods will be unavailable.\n",
+      "Install with: devtools::install_github('VCCRI/CIDR')"
+    )
+  }
+  
+  # monocle3 check
+  if (!requireNamespace("monocle3", quietly = TRUE)) {
+    packageStartupMessage(
+      "Note: 'monocle3' is not installed. Some clustering methods will be unavailable.\n",
+      "Install with: devtools::install_github('cole-trapnell-lab/monocle3')"
+    )
+  }
+  
+  invisible(NULL)
+}
+
+#' Check if cidr package is available
+#' 
+#' This function checks whether the cidr package is installed and available
+#' for use. If not available, it provides installation instructions.
+#' 
+#' @return Invisible NULL if package is available, otherwise stops with error
+#' @keywords internal
+#' @examples 
+#' \dontrun{
+#'   check_cidr()
+#' }
+check_cidr <- function() {
+  if (!requireNamespace("cidr", quietly = TRUE)) {
+    stop("Package 'cidr' is required but not installed.\n",
+         "Install with: devtools::install_github('VCCRI/CIDR')\n",
+         "Or run: BiocManager::install('devtools') first if needed",
+         call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Check if monocle3 package is available
+#' 
+#' This function checks whether the monocle3 package is installed and available
+#' for use. If not available, it provides installation instructions.
+#' 
+#' @return Invisible NULL if package is available, otherwise stops with error
+#' @keywords internal
+#' @examples 
+#' \dontrun{
+#'   check_monocle3()
+#' }
+check_monocle3 <- function() {
+  if (!requireNamespace("monocle3", quietly = TRUE)) {
+    stop("Package 'monocle3' is required but not installed.\n", 
+         "Install with: devtools::install_github('cole-trapnell-lab/monocle3')\n",
+         "Or run: BiocManager::install('devtools') first if needed",
+         call. = FALSE)
+  }
+  invisible(NULL)
+}
+

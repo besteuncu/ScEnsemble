@@ -41,17 +41,16 @@
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment rowData colData
 #' @importFrom SC3 sc3_estimate_k sc3
-#' @importFrom cidr scDataConstructor determineDropoutCandidates wThreshold scDissim scPCA nPC scCluster
 #' @importFrom Seurat CreateSeuratObject NormalizeData FindVariableFeatures ScaleData RunPCA FindNeighbors FindClusters Embeddings Idents
 #' @importFrom SIMLR SIMLR_Estimate_Number_of_Clusters SIMLR
 #' @importFrom Rtsne Rtsne
 #' @importFrom cluster silhouette clusGap
-#' @importFrom monocle3 new_cell_data_set preprocess_cds reduce_dimension cluster_cells clusters
 #' @importFrom RaceID SCseq filterdata getfdata compdist clustexp
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom stats prcomp kmeans
 #' @importFrom methods is new
 #' @importFrom SummarizedExperiment assay assayNames rowData<-
+#' @importClassesFrom Matrix dgCMatrix Matrix
 #'
 #' @examples
 #' # Load required packages
@@ -127,23 +126,24 @@ setMethod("run_individual_algorithms", "ScEnsemble",
     },
 
     CIDR = function(data) {
-      scData <- scDataConstructor(as.matrix(data))
-      scData <- determineDropoutCandidates(scData)
-      scData <- wThreshold(scData)
-      scData <- scDissim(scData)
-      scData <- scPCA(scData)
-      scData <- nPC(scData)
+      check_cidr()
+      scData <- cidr::scDataConstructor(as.matrix(data))
+      scData <- cidr::determineDropoutCandidates(scData)
+      scData <- cidr::wThreshold(scData)
+      scData <- cidr::scDissim(scData)
+      scData <- cidr::scPCA(scData)
+      scData <- cidr::nPC(scData)
       cidr_data <- scData@dissim
       max_k <- min(15, ncol(data) - 1)
       sil_scores <- numeric(max_k - 1)
       for (k_val in 2:max_k) {
-        scData_temp <- scCluster(scData, nCluster = k_val)
+        scData_temp <- cidr::scCluster(scData, nCluster = k_val)
         cluster_labels <- scData_temp@clusters
         sil <- silhouette(cluster_labels, cidr_data)
         sil_scores[k_val - 1] <- mean(sil[, "sil_width"])
       }
       estimated_k <- which.max(sil_scores) + 1
-      scData <- scCluster(scData, nCluster = estimated_k)
+      scData <- cidr::scCluster(scData, nCluster = estimated_k)
       cidr_labels <- scData@clusters
       return(list(labels = cidr_labels, data = cidr_data))
     },
@@ -189,13 +189,14 @@ setMethod("run_individual_algorithms", "ScEnsemble",
     },
 
     Monocle = function(data) {
+      check_monocle3()
       gene_metadata <- data.frame(gene_short_name = rownames(data), row.names = rownames(data))
       cell_metadata <- data.frame(row.names = colnames(data))
-      cds <- new_cell_data_set(as.matrix(data), cell_metadata = cell_metadata, gene_metadata = gene_metadata)
-      cds <- preprocess_cds(cds, num_dim = 50)
-      cds <- reduce_dimension(cds, preprocess_method = "PCA")
-      cds <- cluster_cells(cds)
-      monocle_clusters <- clusters(cds)
+      cds <- monocle3::new_cell_data_set(as.matrix(data), cell_metadata = cell_metadata, gene_metadata = gene_metadata)
+      cds <- monocle3::preprocess_cds(cds, num_dim = 50)
+      cds <- monocle3::reduce_dimension(cds, preprocess_method = "PCA")
+      cds <- monocle3::cluster_cells(cds)
+      monocle_clusters <- monocle3::clusters(cds)
       monocle_data <- cds@int_colData@listData[["reducedDims"]][["PCA"]]
       monocle_labels <- as.integer(monocle_clusters)
       return(list(labels = monocle_labels, data = monocle_data))

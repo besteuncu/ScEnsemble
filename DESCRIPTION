@@ -2,18 +2,17 @@ Package: ScEnsemble
 Title: Ensemble Clustering for Single-Cell RNA-seq Data
 Version: 0.99.0
 Authors@R: c(person("Beste", "Uncu", email = "besteuncu@gmail.com", 
-    role = c("aut", "cre")), person("İdil", "Yavuz", role=c("aut")))
+    role = c("aut", "cre")), person("Idil", "Yavuz", role=c("aut")))
 Description: This package applies multiple individual and ensemble clustering 
-    algorithms to single-cell RNA-seq data with integrated validation and 
-    visualization tools. It implements k-means, hierarchical clustering,
-    spectral clustering, and Leiden clustering algorithms, 
-    combining their results using hypergraph-based ensemble approaches.
+    algorithms to single-cell RNA-seq data with integrated validation tools. 
+    It implements hierarchical clustering, spectral clustering and 
+    Leiden clustering algorithmsbcombining their results using 
+    weighted hypergraph-based ensemble approaches.
 Depends: R (>= 4.5.0)
 Imports: 
-    matrixStats, methods, cluster, fpc, clValid, clusterCrit, SingleCellExperiment, 
-    SC3, SIMLR, Seurat, cidr, ggplot2, igraph, mclust, scRNAseq, Rtsne, stats, 
-    monocle3, RaceID, RColorBrewer, clusterSim, corrplot, dplyr, ggalluvial, 
-    gridExtra, plotly, tidyr, uwot, viridis, SummarizedExperiment
+    methods, cluster, fpc, clValid, clusterCrit, SingleCellExperiment, 
+    SC3, SIMLR, Seurat, igraph, mclust, scRNAseq, Rtsne, stats, RaceID, 
+    clusterSim, SummarizedExperiment, Matrix
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
@@ -29,5 +28,7 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
+    cidr,
+    monocle3
 VignetteBuilder: knitr
 Config/testthat/edition: 3

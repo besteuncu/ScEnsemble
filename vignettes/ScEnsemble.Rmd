@@ -24,6 +24,19 @@ knitr::opts_chunk$set(
 library(BiocStyle)
 ```
 
+
+```{r, eval=FALSE}
+
+if(!requireNamespace("cidr")) {
+  devtools::install_github("VCCRI/CIDR")
+}
+
+if(!requireNamespace("monocle3")) {
+  devtools::install_github("cole-trapnell-lab/monocle3")
+}
+
+```
+
 # Introduction
 
 Single-cell Ensemble Clustering (`ScEnsemble`) is a hypergraph-based ensemble clustering algorithm that integrates diverse scRNA-seq clustering approaches. The primary objective of ScEnsemble is to deliver more consistent and robust results by combining the strengths of different clustering methodologies. Through weightings based on internal evaluation criteria, the algorithm enhances cluster separation and increases intra-cluster compactness. It is important to note that `ScEnsemble` functions solely as a clustering tool. When necessary, data cleaning and preprocessing should be performed by users prior to applying the algorithm.

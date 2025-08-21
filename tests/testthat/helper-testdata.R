@@ -1,7 +1,6 @@
 library(SingleCellExperiment)
 library(scRNAseq)
 library(Matrix)
-library(matrixStats)
 
 suppressMessages({
   Pollen <- PollenGliaData()
@@ -11,7 +10,12 @@ suppressMessages({
 cell_subset <- colnames(Pollen)[1:100]
 Pollen_sub <- Pollen[, cell_subset]
 
-gene_vars <- rowVars(assay(Pollen_sub))
+
+rowVars_base <- function(x) {
+  x <- as.matrix(x)
+  rowMeans((x - rowMeans(x))^2) * (ncol(x) / (ncol(x) - 1))
+}
+gene_vars <- rowVars_base(assay(Pollen_sub))
 top_genes <- order(gene_vars, decreasing = TRUE)[1:500]
 Pollen_sub <- Pollen_sub[top_genes, ]
 
