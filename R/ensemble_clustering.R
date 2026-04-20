@@ -79,769 +79,893 @@ setMethod("ensemble_clustering", "ScEnsemble",
                    ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
                                         "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
                    ...) {
-
-
-  expression_data <- as.matrix(assay(object@sce))
-  true_labels <- object@annotation
-  
-  # Retrieve data 
-  H_matrix <- object@hypergraphs
-  
-  # Extract matrices from H_matrix
-  H <- H_matrix$H
-  HH <- H_matrix$HH
-  H_sil <- H_matrix$H_sil
-  HH_sil <- H_matrix$HH_sil
-  H_ch <- H_matrix$H_ch
-  HH_ch <- H_matrix$HH_ch
-  H_db <- H_matrix$H_db
-  HH_db <- H_matrix$HH_db
-  H_dunn <- H_matrix$H_dunn
-  HH_dunn <- H_matrix$HH_dunn
-  H_ave <- H_matrix$H_ave
-  HH_ave <- H_matrix$HH_ave
-  
-  # Input validation
-  if (!is.matrix(expression_data) && !is.data.frame(expression_data)) {
-    stop("expression_data must be a matrix or data frame")
-  }
-
-  if (!is.list(H_matrix)) {
-    stop("H_matrix must be a list containing hypergraph matrices")
-  }
-
-  # Validate ensemble methods
-  valid_methods <- c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
-                     "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC")
-
-  if (!all(ensemble_methods %in% valid_methods)) {
-    invalid_methods <- setdiff(ensemble_methods, valid_methods)
-    stop("Invalid ensemble methods: ", paste(invalid_methods, collapse = ", "))
-  }
-
-  # Main function that calculates clustering quality indices
-  calculate_quality_indices <- function(data, clusters, method_name = "") {
-    clusters <- as.numeric(factor(clusters))  
-
-    n_clusters <- length(unique(clusters))
-    if (n_clusters < 2) {
-      warning(sprintf("Method %s produced only %d cluster(s). Skipping quality index calculation.", method_name, n_clusters))
-      return(list(silhouette = NA, silhouette_norm = NA,
-                  calinski_harabasz = NA, calinski_harabasz_norm = NA,
-                  davies_bouldin = NA, davies_bouldin_norm = NA,
-                  dunn = NA, dunn_norm = NA))
-    }
-
-    dist_matrix <- prepare_distance_matrix(data)
-
-    # Calculate raw scores
-    silhouette_score <- calculate_silhouette(dist_matrix, clusters, method_name)
-    ch_score         <- calculate_calinski_harabasz(dist_matrix, clusters, method_name)
-    db_score         <- calculate_davies_bouldin(data, clusters, method_name)
-    dunn_score       <- calculate_dunn(dist_matrix, clusters, method_name)
-
-    
-    silhouette_norm <- if (!is.na(silhouette_score)) (silhouette_score + 1) / 2 else NA
-    db_norm <- if (!is.na(db_score)) 1 / (1 + db_score) else NA
-    ch_norm <- if (!is.na(ch_score)) log(1 + ch_score) / (1 + log(1 + ch_score)) else NA
-    dunn_norm <- if (!is.na(dunn_score)) dunn_score / (1 + dunn_score) else NA
-
-    list(
-      silhouette = silhouette_score, silhouette_norm = silhouette_norm,
-      calinski_harabasz = ch_score, calinski_harabasz_norm = ch_norm,
-      davies_bouldin = db_score, davies_bouldin_norm = db_norm,
-      dunn = dunn_score, dunn_norm = dunn_norm)
-  }
-
-  prepare_distance_matrix <- function(data) {
-    # If it is already a dist object, return it directly
-    if (inherits(data, "dist")) return(data)
-
-    # If it is a square matrix (can be similarity or distance)
-    if (is.matrix(data) && nrow(data) == ncol(data)) {
-      diagonal_mean <- mean(diag(data), na.rm = TRUE)
-
-      # If diagonal is ~1, this is the similarity matrix (eg correlation, cosine)
-      if (diagonal_mean > 0.9) {
-        # distance from similarity: distance = 1 - similarity
-        distance_matrix <- 1 - data
-        diag(distance_matrix) <- 0
-        return(as.dist(distance_matrix))
-      } else {
-        # If diagonal is ~0, this can already be distance
-        return(as.dist(data))
-      }
-    }
-
-    # If it is a data frame or data matrix (raw data)
-    if (is.data.frame(data) || is.matrix(data)) {
-      return(dist(data, method = "euclidean"))
-    }
-
-    stop("Data format not recognized. Please provide a data.frame, matrix, or dist object.")
-  }
-
-
-  # Silhouette skoru
-  calculate_silhouette <- function(dist_matrix, clusters, method_name) {
-    tryCatch({
-      mean(cluster::silhouette(clusters, dist_matrix)[, 3])
-    }, error = function(e) {
-      warning(sprintf("Silhouette failed for %s: %s", method_name, e$message))
-      NA
-    })
-  }
-
-  # Calinski-Harabasz score
-  calculate_calinski_harabasz <- function(dist_matrix, clusters, method_name) {
-    tryCatch({
-      cluster.stats(dist_matrix, clusters)$ch
-    }, error = function(e) {
-      warning(sprintf("Calinski-Harabasz failed for %s: %s", method_name, e$message))
-      NA
-    })
-  }
-
-  # Dunn score
-  calculate_dunn <- function(dist_matrix, clusters, method_name) {
-    tryCatch({
-      cluster.stats(dist_matrix, clusters)$dunn
-    }, error = function(e) {
-      warning(sprintf("Dunn failed for %s: %s", method_name, e$message))
-      NA
-    })
-  }
-
-  # Davies-Bouldin score
-  calculate_davies_bouldin <- function(data, clusters, method_name) {
-    tryCatch({
-      if (inherits(data, "dist")) return(NA)
-      manual_davies_bouldin(as.matrix(data), clusters)
-    }, error = function(e) {
-      warning(sprintf("Davies-Bouldin failed for %s: %s", method_name, e$message))
-      NA
-    })
-  }
-
-  # Manuel Davies-Bouldin calculator
-  manual_davies_bouldin <- function(data, clusters) {
-    clusters <- as.numeric(factor(clusters))  
-    unique_clusters <- unique(clusters)
-    n_clusters <- length(unique_clusters)
-    
-    centers <- t(vapply(unique_clusters, function(k) {
-      colMeans(data[clusters == k, , drop = FALSE])
-    }, FUN.VALUE = numeric(ncol(data))))  
-    
-    within_scatter <- vapply(unique_clusters, function(k) {
-      pts <- data[clusters == k, , drop = FALSE]
-      if (nrow(pts) < 2) return(0)
-      mean(sqrt(rowSums((pts - matrix(colMeans(pts), nrow(pts), ncol(data), byrow = TRUE))^2)))
-    }, FUN.VALUE = numeric(1))  
-    
-    between_distances <- as.matrix(dist(centers))
-    
-    db_index <- vapply(1:n_clusters, function(i) {
-      max(vapply(setdiff(1:n_clusters, i), function(j) {
-        (within_scatter[i] + within_scatter[j]) / between_distances[i, j]
-      }, FUN.VALUE = numeric(1)))  
-    }, FUN.VALUE = numeric(1)) 
-    
-    mean(db_index)
-  }
-  
-
-
-
-  results <- list()
-  results$ensemble_clusters <- list()
-  results$ensemble_ari <- list()
-  results$ensemble_quality <- list()  
-
-  # ============================================================
-  message("Ensemble clustering algorithms running...")
-
-  # ============================================================
-  # CSPA (Cluster-based Similarity Partitioning Algorithm)
-  # ============================================================
-  if ("CSPA_Hc" %in% ensemble_methods) {
-    message("Running CSPA_Hc algorithm...")
-
-    cspa_ensemble <- function(H_weighted) {
-      # This function implements the CSPA ensemble clustering algorithm using a weighted hypergraph matrix.
-      
-      # Converts from a similarity matrix to a distance matrix.
-      D <- 1 - H_weighted
-
-      # Apply hierarchical clustering
-      hc <- hclust(as.dist(D), method = "average")
-
-      # Determine the optimal number of clusters using the silhouette method
-      k_range <- 2:10  
-      sil_scores <- numeric(length(k_range))
-
-      for (i in seq_along(k_range)) {
-        k_val <- k_range[i]
-        clusters <- cutree(hc, k = k_val)
-
-        # At least 2 clusters are required to calculate the silhouette value
-        if (length(unique(clusters)) > 1) {
-          sil <- cluster::silhouette(clusters, as.dist(D))
-          sil_scores[i] <- mean(sil[, 3])
-        } else {
-          sil_scores[i] <- 0
-        }
-      }
-
-      optimal_k <- k_range[which.max(sil_scores)]
-
-      final_clusters <- cutree(hc, k = optimal_k)
-
-      return(final_clusters)
-    }
-
-    # Apply the CSPA algorithm to different hypergraph matrices
-    results$ensemble_clusters$cspa_hc <- list(
-      standard = cspa_ensemble(HH),
-      silhouette = cspa_ensemble(HH_sil),
-      ch = cspa_ensemble(HH_ch),
-      db = cspa_ensemble(HH_db),
-      dunn = cspa_ensemble(HH_dunn),
-      average = cspa_ensemble(HH_ave)
-    )
-
-    results$quality_indices$cspa_hc <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa$standard, "CSPA_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa$silhouette, "CSPA_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa$ch, "CSPA_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa$db, "CSPA_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa$dunn, "CSPA_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa$average, "CSPA_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$cspa_hc <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$average)
-      )
-    }
-  }
-
-  # ============================================================
-  # CSPA with Louvain Community Detection
-  # ============================================================
-  if ("CSPA_Louvain" %in% ensemble_methods) {
-    message("Running CSPA_Louvain algorithm...")
-
-    cspa_louvain_ensemble <- function(H_weighted) {
-
-      # Create graph from similarity matrix
-      g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
-
-      # Apply Louvain community detection algorithm
-      louvain_result <- igraph::cluster_louvain(g)
-      clusters <- igraph::membership(louvain_result)
-
-      return(clusters)
-    }
-
-    results$ensemble_clusters$cspa_louvain <- list(
-      standard = cspa_louvain_ensemble(HH),
-      silhouette = cspa_louvain_ensemble(HH_sil),
-      ch = cspa_louvain_ensemble(HH_ch),
-      db = cspa_louvain_ensemble(HH_db),
-      dunn = cspa_louvain_ensemble(HH_dunn),
-      average = cspa_louvain_ensemble(HH_ave)
-    )
-
-    results$quality_indices$cspa_louvain <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_louvain$standard, "CSPA_Louvain_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_louvain$silhouette, "CSPA_Louvain_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa_louvain$ch, "CSPA_Louvain_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa_louvain$db, "CSPA_Louvain_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa_louvain$dunn, "CSPA_Louvain_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_louvain$average, "CSPA_Louvain_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$cspa_louvain <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$average)
-      )
-    }
-  }
-
-  # ============================================================
-  # CSPA with Leiden Community Detection
-  # ============================================================
-  if ("CSPA_Leiden" %in% ensemble_methods) {
-    message("Running CSPA_Leiden algorithm...")
-
-    cspa_leiden_ensemble <- function(H_weighted, resolution=1.0) {
-      
-      g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
-
-      leiden_result <- igraph::cluster_leiden(g, resolution = resolution)
-
-      clusters <- igraph::membership(leiden_result)
-
-      return(clusters)
-    }
-
-    # Try to find the resolution parameter that will give the best result
-    optimize_resolution <- function(H_weighted, true_labels) {
-      res_range <- seq(0.1, 2.0, by = 0.1)
-      ari_scores <- numeric(length(res_range))
-
-      for (i in seq_along(res_range)) {
-        clusters <- cspa_leiden_ensemble(H_weighted, resolution = res_range[i])
-        ari_scores[i] <- adjustedRandIndex(true_labels, clusters)
-      }
-
-      best_res <- res_range[which.max(ari_scores)]
-      return(best_res)
-    }
-    resolution_params <- list()
-
-    if (!is.null(true_labels)) {
-      resolution_params$standard <- optimize_resolution(HH, true_labels)
-      resolution_params$silhouette <- optimize_resolution(HH_sil, true_labels)
-      resolution_params$ch <- optimize_resolution(HH_ch, true_labels)
-      resolution_params$db <- optimize_resolution(HH_db, true_labels)
-      resolution_params$dunn <- optimize_resolution(HH_dunn, true_labels)
-      resolution_params$average <- optimize_resolution(HH_ave, true_labels)
-    } else {
-      resolution_params$standard <- 1.0
-      resolution_params$silhouette <- 1.0
-      resolution_params$ch <- 1.0
-      resolution_params$db <- 1.0
-      resolution_params$dunn <- 1.0
-      resolution_params$average <- 1.0
-    }
-
-    results$ensemble_clusters$cspa_leiden <- list(
-      standard = cspa_leiden_ensemble(HH, resolution_params$standard),
-      silhouette = cspa_leiden_ensemble(HH_sil, resolution_params$silhouette),
-      ch = cspa_leiden_ensemble(HH_ch, resolution_params$ch),
-      db = cspa_leiden_ensemble(HH_db, resolution_params$db),
-      dunn = cspa_leiden_ensemble(HH_dunn, resolution_params$dunn),
-      average = cspa_leiden_ensemble(HH_ave, resolution_params$average)
-    )
-
-    results$quality_indices$cspa_leiden <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_leiden$standard, "CSPA_Leiden_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_leiden$silhouette, "CSPA_Leiden_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa_leiden$ch, "CSPA_Leiden_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa_leiden$db, "CSPA_Leiden_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa_leiden$dunn, "CSPA_Leiden_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_leiden$average, "CSPA_Leiden_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$cspa_leiden <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$average)
-      )
-    }
-  }
-
-  # ============================================================
-  # MCLA (Meta-CLustering Algorithm)
-  # ============================================================
-  if ("MCLA_Hc" %in% ensemble_methods) {
-    message("Running MCLA_Hc algorithm...")
-
-    mcla_ensemble <- function(H_weighted, k=NULL) {
-      # This function implements the MCLA ensemble clustering algorithm using a weighted hypergraph matrix.
-      
-      # Number of hyperedges (number of columns of H)
-      n_hyperedges <- ncol(H_weighted)
-
-      # Calculate Jaccard similarity between hyperedges
-      J <- matrix(0, n_hyperedges, n_hyperedges)
-
-      for (i in 1:(n_hyperedges-1)) {
-        for (j in (i+1):n_hyperedges) {
-          # Calculate Jaccard similarity (intersection/union)
-          # Use real numbers instead of Boolean operators
-          intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
-          union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
-
-          if (union > 0) {
-            J[i, j] <- intersection / union
-            J[j, i] <- J[i, j]  
+            
+            
+            expression_data <- as.matrix(assay(object@sce))
+            true_labels <- object@annotation
+            
+            # Retrieve data 
+            H_matrix <- object@hypergraphs
+            
+            # Extract matrices from H_matrix
+            H <- H_matrix$H
+            HH <- H_matrix$HH
+            H_sil <- H_matrix$H_sil
+            HH_sil <- H_matrix$HH_sil
+            H_ch <- H_matrix$H_ch
+            HH_ch <- H_matrix$HH_ch
+            H_db <- H_matrix$H_db
+            HH_db <- H_matrix$HH_db
+            H_dunn <- H_matrix$H_dunn
+            HH_dunn <- H_matrix$HH_dunn
+            H_ave <- H_matrix$H_ave
+            HH_ave <- H_matrix$HH_ave
+            
+            # Input validation
+            if (!is.matrix(expression_data) && !is.data.frame(expression_data)) {
+              stop("expression_data must be a matrix or data frame")
+            }
+            
+            if (!is.list(H_matrix)) {
+              stop("H_matrix must be a list containing hypergraph matrices")
+            }
+            
+            # Validate ensemble methods
+            valid_methods <- c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
+                               "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC")
+            
+            if (!all(ensemble_methods %in% valid_methods)) {
+              invalid_methods <- setdiff(ensemble_methods, valid_methods)
+              stop("Invalid ensemble methods: ", paste(invalid_methods, collapse = ", "))
+            }
+            
+            # Main function that calculates clustering quality indices
+            calculate_quality_indices <- function(data, clusters, method_name = "") {
+              clusters <- as.numeric(factor(clusters))  
+              
+              n_clusters <- length(unique(clusters))
+              if (n_clusters < 2) {
+                warning(sprintf("Method %s produced only %d cluster(s). Skipping quality index calculation.", method_name, n_clusters))
+                return(list(silhouette = NA, silhouette_norm = NA,
+                            calinski_harabasz = NA, calinski_harabasz_norm = NA,
+                            davies_bouldin = NA, davies_bouldin_norm = NA,
+                            dunn = NA, dunn_norm = NA))
+              }
+              
+              dist_matrix <- prepare_distance_matrix(data)
+              
+              # Calculate raw scores
+              silhouette_score <- calculate_silhouette(dist_matrix, clusters, method_name)
+              ch_score         <- calculate_calinski_harabasz(dist_matrix, clusters, method_name)
+              db_score         <- calculate_davies_bouldin(data, clusters, method_name)
+              dunn_score       <- calculate_dunn(dist_matrix, clusters, method_name)
+              
+              
+              silhouette_norm <- if (!is.na(silhouette_score)) (silhouette_score + 1) / 2 else NA
+              db_norm <- if (!is.na(db_score)) 1 / (1 + db_score) else NA
+              ch_norm <- if (!is.na(ch_score)) log(1 + ch_score) / (1 + log(1 + ch_score)) else NA
+              dunn_norm <- if (!is.na(dunn_score)) dunn_score / (1 + dunn_score) else NA
+              
+              list(
+                silhouette = silhouette_score, silhouette_norm = silhouette_norm,
+                calinski_harabasz = ch_score, calinski_harabasz_norm = ch_norm,
+                davies_bouldin = db_score, davies_bouldin_norm = db_norm,
+                dunn = dunn_score, dunn_norm = dunn_norm)
+            }
+            
+            prepare_distance_matrix <- function(data) {
+              # If it is already a dist object, return it directly
+              if (inherits(data, "dist")) return(data)
+              
+              # If it is a square matrix (can be similarity or distance)
+              if (is.matrix(data) && nrow(data) == ncol(data)) {
+                diagonal_mean <- mean(diag(data), na.rm = TRUE)
+                
+                # If diagonal is ~1, this is the similarity matrix (eg correlation, cosine)
+                if (diagonal_mean > 0.9) {
+                  # distance from similarity: distance = 1 - similarity
+                  distance_matrix <- 1 - data
+                  diag(distance_matrix) <- 0
+                  return(as.dist(distance_matrix))
+                } else {
+                  # If diagonal is ~0, this can already be distance
+                  return(as.dist(data))
+                }
+              }
+              
+              # If it is a data frame or data matrix (raw data)
+              if (is.data.frame(data) || is.matrix(data)) {
+                return(dist(data, method = "euclidean"))
+              }
+              
+              stop("Data format not recognized. Please provide a data.frame, matrix, or dist object.")
+            }
+            
+            
+            # Silhouette skoru
+            calculate_silhouette <- function(dist_matrix, clusters, method_name) {
+              tryCatch({
+                mean(cluster::silhouette(clusters, dist_matrix)[, 3])
+              }, error = function(e) {
+                warning(sprintf("Silhouette failed for %s: %s", method_name, e$message))
+                NA
+              })
+            }
+            
+            # Calinski-Harabasz score
+            calculate_calinski_harabasz <- function(dist_matrix, clusters, method_name) {
+              tryCatch({
+                cluster.stats(dist_matrix, clusters)$ch
+              }, error = function(e) {
+                warning(sprintf("Calinski-Harabasz failed for %s: %s", method_name, e$message))
+                NA
+              })
+            }
+            
+            # Dunn score
+            calculate_dunn <- function(dist_matrix, clusters, method_name) {
+              tryCatch({
+                cluster.stats(dist_matrix, clusters)$dunn
+              }, error = function(e) {
+                warning(sprintf("Dunn failed for %s: %s", method_name, e$message))
+                NA
+              })
+            }
+            
+            # Davies-Bouldin score
+            calculate_davies_bouldin <- function(data, clusters, method_name) {
+              tryCatch({
+                if (inherits(data, "dist")) return(NA)
+                manual_davies_bouldin(as.matrix(data), clusters)
+              }, error = function(e) {
+                warning(sprintf("Davies-Bouldin failed for %s: %s", method_name, e$message))
+                NA
+              })
+            }
+            
+            # Manuel Davies-Bouldin calculator
+            manual_davies_bouldin <- function(data, clusters) {
+              clusters <- as.numeric(factor(clusters))  
+              unique_clusters <- unique(clusters)
+              n_clusters <- length(unique_clusters)
+              
+              centers <- t(vapply(unique_clusters, function(k) {
+                colMeans(data[clusters == k, , drop = FALSE])
+              }, FUN.VALUE = numeric(ncol(data))))  
+              
+              within_scatter <- vapply(unique_clusters, function(k) {
+                pts <- data[clusters == k, , drop = FALSE]
+                if (nrow(pts) < 2) return(0)
+                mean(sqrt(rowSums((pts - matrix(colMeans(pts), nrow(pts), ncol(data), byrow = TRUE))^2)))
+              }, FUN.VALUE = numeric(1))  
+              
+              between_distances <- as.matrix(dist(centers))
+              
+              db_index <- vapply(1:n_clusters, function(i) {
+                max(vapply(setdiff(1:n_clusters, i), function(j) {
+                  (within_scatter[i] + within_scatter[j]) / between_distances[i, j]
+                }, FUN.VALUE = numeric(1)))  
+              }, FUN.VALUE = numeric(1)) 
+              
+              mean(db_index)
+            }
+            
+            
+            
+            
+            results <- list()
+            results$ensemble_clusters <- list()
+            results$ensemble_ari <- list()
+            results$quality_indices <- list()  
+            
+            # ============================================================
+            message("Ensemble clustering algorithms running...")
+            
+            # ============================================================
+            # CSPA (Cluster-based Similarity Partitioning Algorithm)
+            # ============================================================
+            if ("CSPA_Hc" %in% ensemble_methods) {
+              message("Running CSPA_Hc algorithm...")
+              
+              cspa_ensemble <- function(H_weighted) {
+                # This function implements the CSPA ensemble clustering algorithm using a weighted hypergraph matrix.
+                
+                # Converts from a similarity matrix to a distance matrix.
+                D <- 1 - H_weighted
+                
+                # Apply hierarchical clustering
+                hc <- hclust(as.dist(D), method = "average")
+                
+                # Determine the optimal number of clusters using the silhouette method
+                k_range <- 2:10  
+                sil_scores <- numeric(length(k_range))
+                
+                for (i in seq_along(k_range)) {
+                  k_val <- k_range[i]
+                  clusters <- cutree(hc, k = k_val)
+                  
+                  # At least 2 clusters are required to calculate the silhouette value
+                  if (length(unique(clusters)) > 1) {
+                    sil <- cluster::silhouette(clusters, as.dist(D))
+                    sil_scores[i] <- mean(sil[, 3])
+                  } else {
+                    sil_scores[i] <- 0
+                  }
+                }
+                
+                optimal_k <- k_range[which.max(sil_scores)]
+                
+                final_clusters <- cutree(hc, k = optimal_k)
+                
+                return(final_clusters)
+              }
+              
+              # Apply the CSPA algorithm to different hypergraph matrices
+              results$ensemble_clusters$cspa_hc <- list(
+                standard = cspa_ensemble(HH),
+                silhouette = cspa_ensemble(HH_sil),
+                ch = cspa_ensemble(HH_ch),
+                db = cspa_ensemble(HH_db),
+                dunn = cspa_ensemble(HH_dunn),
+                average = cspa_ensemble(HH_ave)
+              )
+              
+              results$quality_indices$cspa_hc <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa$standard, "CSPA_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa$silhouette, "CSPA_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa$ch, "CSPA_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa$db, "CSPA_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa$dunn, "CSPA_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa$average, "CSPA_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$cspa_hc <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa$average)
+                )
+              }
+            }
+            
+            # ============================================================
+            # CSPA with Louvain Community Detection
+            # ============================================================
+            if ("CSPA_Louvain" %in% ensemble_methods) {
+              message("Running CSPA_Louvain algorithm...")
+              
+              cspa_louvain_ensemble <- function(H_weighted) {
+                
+                # Create graph from similarity matrix
+                g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
+                
+                # Apply Louvain community detection algorithm
+                louvain_result <- igraph::cluster_louvain(g)
+                clusters <- igraph::membership(louvain_result)
+                
+                return(clusters)
+              }
+              
+              results$ensemble_clusters$cspa_louvain <- list(
+                standard = cspa_louvain_ensemble(HH),
+                silhouette = cspa_louvain_ensemble(HH_sil),
+                ch = cspa_louvain_ensemble(HH_ch),
+                db = cspa_louvain_ensemble(HH_db),
+                dunn = cspa_louvain_ensemble(HH_dunn),
+                average = cspa_louvain_ensemble(HH_ave)
+              )
+              
+              results$quality_indices$cspa_louvain <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_louvain$standard, "CSPA_Louvain_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_louvain$silhouette, "CSPA_Louvain_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa_louvain$ch, "CSPA_Louvain_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa_louvain$db, "CSPA_Louvain_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa_louvain$dunn, "CSPA_Louvain_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_louvain$average, "CSPA_Louvain_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$cspa_louvain <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_louvain$average)
+                )
+              }
+            }
+            
+            # ============================================================
+            # CSPA with Leiden Community Detection
+            # ============================================================
+            if ("CSPA_Leiden" %in% ensemble_methods) {
+              message("Running CSPA_Leiden algorithm...")
+              
+              cspa_leiden_ensemble <- function(H_weighted, resolution=1.0) {
+                set.seed(42)
+                g <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
+                
+                leiden_result <- igraph::cluster_leiden(g, resolution = resolution)
+                
+                clusters <- igraph::membership(leiden_result)
+                
+                return(clusters)
+              }
+              
+              # Bootstrap-based stability optimization for CSPA Leiden
+              # Implementation Plan Adım 1: Stabilite Tabanlı Çözünürlük Optimizasyonu
+              # Her resolution için:
+              #   1. Tüm NxN ko-birleşim matrisi üzerinde Leiden → Referans kümeleme
+              #   2. N=10 bootstrap: satır+sütun bazında %80 alt-örnekleme (simetrik matris)
+              #   3. Alt-örnekte Leiden çalıştır → sub_clusters
+              #   4. Referans kümelemenin o hücrelere denk etiketleri ile ARI hesapla
+              #   5. Ortalama ARI = stabilite skoru → en yüksek skoru veren res seçilir
+              optimize_resolution_cspa <- function(H_weighted, n_bootstrap = 10, subsample_fraction = 0.8) {
+                res_range <- seq(0.1, 2.0, by = 0.1)
+                N <- nrow(H_weighted)
+                
+                best_res <- NA
+                best_stability <- -Inf
+                
+                for (r in res_range) {
+                  # Adım 1: Referans kümeleme — tüm matris üzerinde Leiden
+                  set.seed(42)
+                  ref_clusters <- tryCatch({
+                    g_ref <- igraph::graph_from_adjacency_matrix(H_weighted, mode = "undirected", weighted = TRUE)
+                    ref_result <- igraph::cluster_leiden(g_ref, resolution = r)
+                    igraph::membership(ref_result)
+                  }, error = function(e) NULL)
+                  
+                  if (is.null(ref_clusters) || length(unique(ref_clusters)) < 2) next
+                  
+                  # Adım 2-4: Bootstrap döngüsü
+                  ari_scores <- numeric(n_bootstrap)
+                  
+                  for (b in 1:n_bootstrap) {
+                    # %80 alt-örnekleme: satır ve sütun aynı anda (NxN simetrik matris)
+                    set.seed(42 + b) 
+                    sample_idx <- sample(1:N, round(subsample_fraction * N), replace = FALSE)
+                    H_sub <- H_weighted[sample_idx, sample_idx]
+                    
+                    sub_clusters <- tryCatch({
+                      g_sub <- igraph::graph_from_adjacency_matrix(H_sub, mode = "undirected", weighted = TRUE)
+                      sub_result <- igraph::cluster_leiden(g_sub, resolution = r)
+                      igraph::membership(sub_result)
+                    }, error = function(e) NULL)
+                    
+                    if (is.null(sub_clusters) || length(unique(sub_clusters)) < 2) {
+                      ari_scores[b] <- 0
+                      next
+                    }
+                    
+                    # Adım 4: Referans kümelemenin o hücrelere denk etiketleri ile ARI
+                    ref_sub <- ref_clusters[sample_idx]
+                    ari_val <- tryCatch(
+                      mclust::adjustedRandIndex(ref_sub, sub_clusters),
+                      error = function(e) NA_real_
+                    )
+                    ari_scores[b] <- if (is.na(ari_val)) 0 else ari_val
+                  }
+                  
+                  # Adım 5: Ortalama ARI = stabilite skoru
+                  stability_score <- mean(ari_scores, na.rm = TRUE)
+                  if (is.na(stability_score)) next
+                  
+                  if (stability_score > best_stability) {
+                    best_stability <- stability_score
+                    best_res <- r
+                  }
+                }
+                
+                # Fallback: hiçbir resolution geçerli kümeleme vermezse
+                if (is.na(best_res)) best_res <- 0.5
+                
+                message(sprintf("    CSPA Leiden optimum resolution: %.2f (Bootstrap Stabilite ARI: %.4f)", best_res, ifelse(is.finite(best_stability), best_stability, 0)))
+                return(best_res)
+              }
+              
+              resolution_params <- list()
+              resolution_params$standard <- optimize_resolution_cspa(HH)
+              resolution_params$silhouette <- optimize_resolution_cspa(HH_sil)
+              resolution_params$ch <- optimize_resolution_cspa(HH_ch)
+              resolution_params$db <- optimize_resolution_cspa(HH_db)
+              resolution_params$dunn <- optimize_resolution_cspa(HH_dunn)
+              resolution_params$average <- optimize_resolution_cspa(HH_ave)
+              
+              results$ensemble_clusters$cspa_leiden <- list(
+                standard = cspa_leiden_ensemble(HH, resolution_params$standard),
+                silhouette = cspa_leiden_ensemble(HH_sil, resolution_params$silhouette),
+                ch = cspa_leiden_ensemble(HH_ch, resolution_params$ch),
+                db = cspa_leiden_ensemble(HH_db, resolution_params$db),
+                dunn = cspa_leiden_ensemble(HH_dunn, resolution_params$dunn),
+                average = cspa_leiden_ensemble(HH_ave, resolution_params$average)
+              )
+              
+              results$quality_indices$cspa_leiden <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$cspa_leiden$standard, "CSPA_Leiden_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$cspa_leiden$silhouette, "CSPA_Leiden_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$cspa_leiden$ch, "CSPA_Leiden_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$cspa_leiden$db, "CSPA_Leiden_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$cspa_leiden$dunn, "CSPA_Leiden_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$cspa_leiden$average, "CSPA_Leiden_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$cspa_leiden <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$cspa_leiden$average)
+                )
+              }
+            }
+            
+            # ============================================================
+            # MCLA (Meta-CLustering Algorithm)
+            # ============================================================
+            if ("MCLA_Hc" %in% ensemble_methods) {
+              message("Running MCLA_Hc algorithm...")
+              
+              mcla_ensemble <- function(H_weighted, k=NULL) {
+                # This function implements the MCLA ensemble clustering algorithm using a weighted hypergraph matrix.
+                
+                # Number of hyperedges (number of columns of H)
+                n_hyperedges <- ncol(H_weighted)
+                
+                # Calculate Jaccard similarity between hyperedges
+                J <- matrix(0, n_hyperedges, n_hyperedges)
+                
+                for (i in 1:(n_hyperedges-1)) {
+                  for (j in (i+1):n_hyperedges) {
+                    # Calculate Jaccard similarity (intersection/union)
+                    # Use real numbers instead of Boolean operators
+                    intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
+                    union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
+                    
+                    if (union > 0) {
+                      J[i, j] <- intersection / union
+                      J[j, i] <- J[i, j]  
+                    }
+                  }
+                }
+                
+                D <- 1 - J
+                # Clustering Hyperedges
+                hc <- hclust(as.dist(D), method = "average")
+                
+                
+                if (is.null(k)) {
+                  k_range <- 2:min(10, n_hyperedges-1)  
+                  sil_scores <- numeric(length(k_range))
+                  
+                  for (i in seq_along(k_range)) {
+                    k_val <- k_range[i]
+                    clusters <- cutree(hc, k = k_val)
+                    
+                    if (length(unique(clusters)) > 1) {
+                      sil <- cluster::silhouette(clusters, as.dist(D))
+                      sil_scores[i] <- mean(sil[, 3])
+                    } else {
+                      sil_scores[i] <- 0
+                    }
+                  }
+                  
+                  optimal_k <- k_range[which.max(sil_scores)]
+                } else {
+                  optimal_k <- k
+                }
+                
+                meta_clusters <- cutree(hc, k = optimal_k)
+                
+                # Combine meta-clusters and find the most relevant cluster for each object
+                n_samples <- nrow(H_weighted)
+                cluster_association <- matrix(0, n_samples, optimal_k)
+                
+                for (i in 1:optimal_k) {
+                  meta_cluster_i <- which(meta_clusters == i)
+                  if (length(meta_cluster_i) > 0) {
+                    # H columns belonging to this meta-group collect
+                    # Use values of H_weighted matrix
+                    cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
+                  }
+                }
+                
+                # Assign each object to the meta-cluster with the highest association
+                final_clusters <- apply(cluster_association, 1, which.max)
+                
+                # Instead of assigning cluster labels randomly, treat them as consecutive numbers starting from 1
+                return(as.integer(final_clusters))
+              }
+              
+              results$ensemble_clusters$mcla <- list(
+                standard = mcla_ensemble(H),
+                silhouette = mcla_ensemble(H_sil),
+                ch = mcla_ensemble(H_ch),
+                db = mcla_ensemble(H_db),
+                dunn = mcla_ensemble(H_dunn),
+                average = mcla_ensemble(H_ave)
+              )
+              
+              results$quality_indices$mcla <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla$standard, "MCLA_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla$silhouette, "MCLA_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla$ch, "MCLA_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla$db, "MCLA_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla$dunn, "MCLA_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla$average, "MCLA_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$mcla <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$average)
+                )
+              }
+            }
+            
+            # ============================================================
+            # MCLA with Louvain Community Detection
+            # ============================================================
+            if ("MCLA_Louvain" %in% ensemble_methods) {
+              message("Running MCLA_Louvain algorithm...")
+              
+              mcla_louvain_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
+                
+                n_hyperedges <- ncol(H_weighted)
+                
+                J <- matrix(0, n_hyperedges, n_hyperedges)
+                
+                for (i in 1:(n_hyperedges-1)) {
+                  for (j in (i+1):n_hyperedges) {
+                    intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
+                    union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
+                    
+                    if (union > 0) {
+                      J[i, j] <- intersection / union
+                      J[j, i] <- J[i, j]  
+                    }
+                  }
+                }
+                
+                g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
+                
+                louvain_result <- igraph::cluster_louvain(g)
+                meta_clusters <- igraph::membership(louvain_result)
+                
+                k_actual <- length(unique(meta_clusters))
+                
+                if (!is.null(k) && k != k_actual) {
+                  warning(paste("Louvain algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
+                }
+                
+                n_samples <- nrow(H_weighted)
+                cluster_association <- matrix(0, n_samples, k_actual)
+                
+                for (i in 1:k_actual) {
+                  meta_cluster_i <- which(meta_clusters == i)
+                  if (length(meta_cluster_i) > 0) {
+                    cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
+                  }
+                }
+                
+                final_clusters <- apply(cluster_association, 1, which.max)
+                
+                return(as.integer(final_clusters))
+              }
+              
+              results$ensemble_clusters$mcla_louvain <- list(
+                standard = mcla_louvain_ensemble(H),
+                silhouette = mcla_louvain_ensemble(H_sil),
+                ch = mcla_louvain_ensemble(H_ch),
+                db = mcla_louvain_ensemble(H_db),
+                dunn = mcla_louvain_ensemble(H_dunn),
+                average = mcla_louvain_ensemble(H_ave)
+              )
+              
+              results$quality_indices$mcla_louvain <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_louvain$standard, "MCLA_Louvain_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_louvain$silhouette, "MCLA_Louvain_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla_louvain$ch, "MCLA_Louvain_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla_louvain$db, "MCLA_Louvain_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla_louvain$dunn, "MCLA_Louvain_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_louvain$average, "MCLA_Louvain_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$mcla_louvain <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$average)
+                )
+              }
+            }
+            
+            # ============================================================
+            # MCLA with Leiden Community Detection
+            # ============================================================
+            if ("MCLA_Leiden" %in% ensemble_methods) {
+              message("Running MCLA_Leiden algorithm...")
+              
+              mcla_leiden_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
+                set.seed(42)
+                n_hyperedges <- ncol(H_weighted)
+                
+                J <- matrix(0, n_hyperedges, n_hyperedges)
+                
+                for (i in 1:(n_hyperedges-1)) {
+                  for (j in (i+1):n_hyperedges) {
+                    intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
+                    union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
+                    
+                    if (union > 0) {
+                      J[i, j] <- intersection / union
+                      J[j, i] <- J[i, j] 
+                    }
+                  }
+                }
+                
+                g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
+                
+                leiden_result <- igraph::cluster_leiden(g, resolution = resolution, objective_function = "CPM")
+                meta_clusters <- igraph::membership(leiden_result)
+                
+                k_actual <- length(unique(meta_clusters))
+                
+                if (!is.null(k) && k != k_actual) {
+                  warning(paste("Leiden algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
+                }
+                n_samples <- nrow(H_weighted)
+                cluster_association <- matrix(0, n_samples, k_actual)
+                
+                for (i in 1:k_actual) {
+                  meta_cluster_i <- which(meta_clusters == i)
+                  if (length(meta_cluster_i) > 0) {
+                    cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
+                  }
+                }
+                
+                final_clusters <- apply(cluster_association, 1, which.max)
+                
+                return(as.integer(final_clusters))
+              }
+            
+            # Bootstrap-based stability optimization for MCLA Leiden
+            # Implementation Plan Adım 1: Stabilite Tabanlı Çözünürlük Optimizasyonu
+            # Her resolution için:
+            #   1. Tüm NxM hiperçizge matrisi üzerinde MCLA+Leiden pipeline → Referans kümeleme
+            #   2. N=10 bootstrap: sütun (hyperedge) bazında %80 alt-örnekleme
+            #   3. Alt-örnekte MCLA+Leiden pipeline → sub_clusters (tüm hücreler dahil)
+            #   4. Referans ile sub_clusters arasında ARI hesapla
+            #   5. Ortalama ARI = stabilite skoru → en yüksek skoru veren res seçilir
+            optimize_resolution_mcla <- function(H_weighted, n_bootstrap = 10, subsample_fraction = 0.8) {
+              res_range <- seq(0.1, 1.2, by = 0.1)
+              M <- ncol(H_weighted)  # hyperedge sayısı
+              N <- nrow(H_weighted)  # hücre sayısı
+              
+              # Yardımcı: verilen H matrisi ve resolution ile tam MCLA pipeline çalıştır
+              run_mcla_leiden <- function(H_mat, resolution) {
+                set.seed(42)
+                n_he <- ncol(H_mat)
+                if (n_he < 2) return(NULL)
+                
+                J <- matrix(0, n_he, n_he)
+                for (i in 1:(n_he - 1)) {
+                  for (j in (i + 1):n_he) {
+                    intersection <- sum(pmin(H_mat[, i], H_mat[, j]))
+                    union_val    <- sum(pmax(H_mat[, i], H_mat[, j]))
+                    if (union_val > 0) {
+                      J[i, j] <- intersection / union_val
+                      J[j, i] <- J[i, j]
+                    }
+                  }
+                }
+                
+                g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
+                leiden_result <- tryCatch(
+                  igraph::cluster_leiden(g, resolution = resolution, objective_function = "modularity"),
+                  error = function(e) NULL
+                )
+                if (is.null(leiden_result)) return(NULL)
+                
+                meta_clusters <- igraph::membership(leiden_result)
+                k_actual <- length(unique(meta_clusters))
+                if (k_actual < 2) return(NULL)
+                
+                cluster_association <- matrix(0, nrow(H_mat), k_actual)
+                for (i in 1:k_actual) {
+                  meta_cluster_i <- which(meta_clusters == i)
+                  if (length(meta_cluster_i) > 0) {
+                    cluster_association[, i] <- rowSums(H_mat[, meta_cluster_i, drop = FALSE])
+                  }
+                }
+                return(as.integer(apply(cluster_association, 1, which.max)))
+              }
+              
+              best_res <- NA
+              best_stability <- -Inf
+              
+              for (r in res_range) {
+                # Adım 1: Referans kümeleme — tüm H_weighted üzerinde MCLA+Leiden
+                ref_clusters <- run_mcla_leiden(H_weighted, resolution = r)
+                if (is.null(ref_clusters) || length(unique(ref_clusters)) < 2) next
+                
+                # Adım 2-4: Bootstrap döngüsü
+                ari_scores <- numeric(n_bootstrap)
+                
+                for (b in 1:n_bootstrap) {
+                  # %80 alt-örnekleme: sütun (hyperedge) bazında
+                  set.seed(42 + b)
+                  sample_cols <- sample(1:M, round(subsample_fraction * M), replace = FALSE)
+                  H_sub <- H_weighted[, sample_cols, drop = FALSE]
+                  
+                  sub_clusters <- run_mcla_leiden(H_sub, resolution = r)
+                  
+                  if (is.null(sub_clusters) || length(unique(sub_clusters)) < 2) {
+                    ari_scores[b] <- 0
+                    next
+                  }
+                  
+                  # Adım 4: Tüm N hücre üzerinden referans ile sub_clusters arasında ARI
+                  ari_val <- tryCatch(
+                    mclust::adjustedRandIndex(ref_clusters, sub_clusters),
+                    error = function(e) NA_real_
+                  )
+                  ari_scores[b] <- if (is.na(ari_val)) 0 else ari_val
+                }
+                
+                # Adım 5: Ortalama ARI = stabilite skoru
+                stability_score <- mean(ari_scores, na.rm = TRUE)
+                if (is.na(stability_score)) next
+                
+                if (stability_score > best_stability) {
+                  best_stability <- stability_score
+                  best_res <- r
+                }
+              }
+              
+              if (is.na(best_res)) best_res <- 0.5
+              
+              message(sprintf("    MCLA Leiden optimum resolution: %.2f (Bootstrap Stabilite ARI: %.4f)", best_res, ifelse(is.finite(best_stability), best_stability, 0)))
+              return(best_res)
+            }
+            
+            resolution_params <- list()
+            resolution_params$standard <- optimize_resolution_mcla(H)
+            resolution_params$silhouette <- optimize_resolution_mcla(H_sil)
+            resolution_params$ch <- optimize_resolution_mcla(H_ch)
+            resolution_params$db <- optimize_resolution_mcla(H_db)
+            resolution_params$dunn <- optimize_resolution_mcla(H_dunn)
+            resolution_params$average <- optimize_resolution_mcla(H_ave)
+            
+            results$ensemble_clusters$mcla_leiden <- list(
+              standard = mcla_leiden_ensemble(H, resolution = resolution_params$standard),
+              silhouette = mcla_leiden_ensemble(H_sil, resolution = resolution_params$silhouette),
+              ch = mcla_leiden_ensemble(H_ch, resolution = resolution_params$ch),
+              db = mcla_leiden_ensemble(H_db, resolution = resolution_params$db),
+              dunn = mcla_leiden_ensemble(H_dunn, resolution = resolution_params$dunn),
+              average = mcla_leiden_ensemble(H_ave, resolution = resolution_params$average)
+            )
+            
+            results$quality_indices$mcla_leiden <- list(
+              standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_leiden$standard, "MCLA_Leiden_standard"),
+              silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_leiden$silhouette, "MCLA_Leiden_silhouette"),
+              ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla_leiden$ch, "MCLA_Leiden_ch"),
+              db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla_leiden$db, "MCLA_Leiden_db"),
+              dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla_leiden$dunn, "MCLA_Leiden_dunn"),
+              average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_leiden$average, "MCLA_Leiden_average")
+            )
+            
+            if (!is.null(true_labels)) {
+              results$ensemble_ari$mcla_leiden <- list(
+                standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$standard),
+                silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$silhouette),
+                ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$ch),
+                db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$db),
+                dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$dunn),
+                average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$average)
+              )
+            }
           }
-        }
-      }
-
-      D <- 1 - J
-      # Clustering Hyperedges
-      hc <- hclust(as.dist(D), method = "average")
-
-      
-      if (is.null(k)) {
-        k_range <- 2:min(10, n_hyperedges-1)  
-        sil_scores <- numeric(length(k_range))
-
-        for (i in seq_along(k_range)) {
-          k_val <- k_range[i]
-          clusters <- cutree(hc, k = k_val)
-
-          if (length(unique(clusters)) > 1) {
-            sil <- cluster::silhouette(clusters, as.dist(D))
-            sil_scores[i] <- mean(sil[, 3])
-          } else {
-            sil_scores[i] <- 0
+            # ============================================================
+            # Hypergraph Spectral Clustering (HGSC)
+            # ============================================================
+            if ("HGSC" %in% ensemble_methods) {
+              message("Running Hypergraph Spectral Clustering(HGSC) algorithm...")
+              
+              hgsc_ensemble <- function(H_weighted, k=NULL) {
+                # Calculate the Hypergraph Laplacian matrix
+                D_v <- diag(rowSums(H_weighted))  # Vertex degree matrix
+                D_e <- diag(colSums(H_weighted))  # Edge degree matrix
+                
+                D_v_inv_sqrt <- diag(1 / sqrt(diag(D_v)))
+                D_e_inv <- diag(1 / diag(D_e))
+                
+                # Normalized Laplacian matrix
+                L <- diag(nrow(H_weighted)) - D_v_inv_sqrt %*% H_weighted %*% D_e_inv %*% t(H_weighted) %*% D_v_inv_sqrt
+                
+                estimate_optimal_k <- function(L) {
+                  # Calculate the eigenvalues of the Laplacian matrix
+                  eigen_values <- eigen(L, only.values = TRUE)$values
+                  
+                  # Sort Eigenvalues from smallest to largest
+                  eigen_values <- sort(eigen_values)
+                  
+                  # Calculate the differences between consecutive eigenvalues
+                  eigen_gaps <- diff(eigen_values)
+                  
+                  # Find the index of the largest gap 
+                  # This refers to the optimal number of clusters
+                  k_est <- which.max(eigen_gaps) + 1
+                  
+                  return(k_est)
+                }
+                
+                if(is.null(k)) {
+                  k <- estimate_optimal_k(L)
+                }
+                # Eigenvalues and vectors
+                eigen_result <- eigen(L)
+                
+                eigenvalues_sorted <- sort(eigen_result$values, index.return = TRUE)
+                U <- eigen_result$vectors[, eigenvalues_sorted$ix[1:k]]
+                
+                kmeans_result <- kmeans(U, centers = k, nstart = 20)
+                
+                return(kmeans_result$cluster)
+              }
+              
+              results$ensemble_clusters$hgsc <- list(
+                standard = hgsc_ensemble(HH),
+                silhouette = hgsc_ensemble(HH_sil),
+                ch = hgsc_ensemble(HH_ch),
+                db = hgsc_ensemble(HH_db),
+                dunn = hgsc_ensemble(HH_dunn),
+                average = hgsc_ensemble(HH_ave)
+              )
+              
+              results$quality_indices$hgsc <- list(
+                standard = calculate_quality_indices(HH, results$ensemble_clusters$hgsc$standard, "HGSC_standard"),
+                silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$hgsc$silhouette, "HGSC_silhouette"),
+                ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$hgsc$ch, "HGSC_ch"),
+                db = calculate_quality_indices(HH_db, results$ensemble_clusters$hgsc$db, "HGSC_db"),
+                dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$hgsc$dunn, "HGSC_dunn"),
+                average = calculate_quality_indices(HH_ave, results$ensemble_clusters$hgsc$average, "HGSC_average")
+              )
+              
+              if (!is.null(true_labels)) {
+                results$ensemble_ari$hgsc <- list(
+                  standard = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$standard),
+                  silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$silhouette),
+                  ch = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$ch),
+                  db = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$db),
+                  dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$dunn),
+                  average = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$average)
+                )
+              }
+            }
+            
+            ensemble_results <- new("EnsembleResults",
+                                    ensemble_clusters = results$ensemble_clusters,
+                                    ensemble_ari = results$ensemble_ari,
+                                    ensemble_quality = results$quality_indices)
+            
+            
+            object@ensemble_results <- ensemble_results
+            
+            
+            return(object)
           }
-        }
-
-        optimal_k <- k_range[which.max(sil_scores)]
-      } else {
-        optimal_k <- k
-      }
-
-      meta_clusters <- cutree(hc, k = optimal_k)
-
-      # Combine meta-clusters and find the most relevant cluster for each object
-      n_samples <- nrow(H_weighted)
-      cluster_association <- matrix(0, n_samples, optimal_k)
-
-      for (i in 1:optimal_k) {
-        meta_cluster_i <- which(meta_clusters == i)
-        if (length(meta_cluster_i) > 0) {
-          # H columns belonging to this meta-group collect
-          # Use values of H_weighted matrix
-          cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
-        }
-      }
-
-      # Assign each object to the meta-cluster with the highest association
-      final_clusters <- apply(cluster_association, 1, which.max)
-
-      # Instead of assigning cluster labels randomly, treat them as consecutive numbers starting from 1
-      return(as.integer(final_clusters))
-    }
-
-    results$ensemble_clusters$mcla <- list(
-      standard = mcla_ensemble(H),
-      silhouette = mcla_ensemble(H_sil),
-      ch = mcla_ensemble(H_ch),
-      db = mcla_ensemble(H_db),
-      dunn = mcla_ensemble(H_dunn),
-      average = mcla_ensemble(H_ave)
-    )
-
-    results$quality_indices$mcla <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla$standard, "MCLA_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla$silhouette, "MCLA_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla$ch, "MCLA_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla$db, "MCLA_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla$dunn, "MCLA_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla$average, "MCLA_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$mcla <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla$average)
-      )
-    }
-  }
-
-  # ============================================================
-  # MCLA with Louvain Community Detection
-  # ============================================================
-  if ("MCLA_Louvain" %in% ensemble_methods) {
-    message("Running MCLA_Louvain algorithm...")
-
-    mcla_louvain_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
-      
-      n_hyperedges <- ncol(H_weighted)
-
-      J <- matrix(0, n_hyperedges, n_hyperedges)
-
-      for (i in 1:(n_hyperedges-1)) {
-        for (j in (i+1):n_hyperedges) {
-          intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
-          union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
-
-          if (union > 0) {
-            J[i, j] <- intersection / union
-            J[j, i] <- J[i, j]  
-          }
-        }
-      }
-
-      g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
-
-      louvain_result <- igraph::cluster_louvain(g)
-      meta_clusters <- igraph::membership(louvain_result)
-
-      k_actual <- length(unique(meta_clusters))
-
-      if (!is.null(k) && k != k_actual) {
-        warning(paste("Louvain algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
-      }
-
-      n_samples <- nrow(H_weighted)
-      cluster_association <- matrix(0, n_samples, k_actual)
-
-      for (i in 1:k_actual) {
-        meta_cluster_i <- which(meta_clusters == i)
-        if (length(meta_cluster_i) > 0) {
-          cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
-        }
-      }
-
-      final_clusters <- apply(cluster_association, 1, which.max)
-
-      return(as.integer(final_clusters))
-    }
-
-    results$ensemble_clusters$mcla_louvain <- list(
-      standard = mcla_louvain_ensemble(H),
-      silhouette = mcla_louvain_ensemble(H_sil),
-      ch = mcla_louvain_ensemble(H_ch),
-      db = mcla_louvain_ensemble(H_db),
-      dunn = mcla_louvain_ensemble(H_dunn),
-      average = mcla_louvain_ensemble(H_ave)
-    )
-
-    results$quality_indices$mcla_louvain <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_louvain$standard, "MCLA_Louvain_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_louvain$silhouette, "MCLA_Louvain_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla_louvain$ch, "MCLA_Louvain_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla_louvain$db, "MCLA_Louvain_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla_louvain$dunn, "MCLA_Louvain_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_louvain$average, "MCLA_Louvain_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$mcla_louvain <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_louvain$average)
-      )
-    }
-  }
-
-  # ============================================================
-  # MCLA with Leiden Community Detection
-  # ============================================================
-  if ("MCLA_Leiden" %in% ensemble_methods) {
-    message("Running MCLA_Leiden algorithm...")
-
-    mcla_leiden_ensemble <- function(H_weighted, k = NULL, resolution = 1.0) {
-
-      n_hyperedges <- ncol(H_weighted)
-
-      J <- matrix(0, n_hyperedges, n_hyperedges)
-
-      for (i in 1:(n_hyperedges-1)) {
-        for (j in (i+1):n_hyperedges) {
-          intersection <- sum(pmin(H_weighted[, i], H_weighted[, j]))
-          union <- sum(pmax(H_weighted[, i], H_weighted[, j]))
-
-          if (union > 0) {
-            J[i, j] <- intersection / union
-            J[j, i] <- J[i, j] 
-          }
-        }
-      }
-
-      g <- igraph::graph_from_adjacency_matrix(J, mode = "undirected", weighted = TRUE)
-
-      leiden_result <- igraph::cluster_leiden(g, resolution = resolution, objective_function = "CPM")
-      meta_clusters <- igraph::membership(leiden_result)
-
-      k_actual <- length(unique(meta_clusters))
-
-      if (!is.null(k) && k != k_actual) {
-        warning(paste("Leiden algoritmas??", k_actual, "k??me buldu, belirtilen k =", k, "de??erinden farkl??."))
-      }
-      n_samples <- nrow(H_weighted)
-      cluster_association <- matrix(0, n_samples, k_actual)
-
-      for (i in 1:k_actual) {
-        meta_cluster_i <- which(meta_clusters == i)
-        if (length(meta_cluster_i) > 0) {
-          cluster_association[, i] <- rowSums(H_weighted[, meta_cluster_i, drop = FALSE])
-        }
-      }
-
-      final_clusters <- apply(cluster_association, 1, which.max)
-
-      return(as.integer(final_clusters))
-    }
-    
-    optimize_resolution_leiden <- function(H_weighted, true_labels) {
-      res_range <- seq(0.1, 2.0, by = 0.1)
-      ari_scores <- numeric(length(res_range))
-
-      for (i in seq_along(res_range)) {
-        clusters <- mcla_leiden_ensemble(H_weighted, resolution = res_range[i])
-        ari_scores[i] <- adjustedRandIndex(true_labels, clusters)
-      }
-
-      best_res <- res_range[which.max(ari_scores)]
-      return(best_res)
-    }
-
-    resolution_params <- list()
-
-    if (!is.null(true_labels)) {
-      resolution_params$standard <- optimize_resolution_leiden(H, true_labels)
-      resolution_params$silhouette <- optimize_resolution_leiden(H_sil, true_labels)
-      resolution_params$ch <- optimize_resolution_leiden(H_ch, true_labels)
-      resolution_params$db <- optimize_resolution_leiden(H_db, true_labels)
-      resolution_params$dunn <- optimize_resolution_leiden(H_dunn, true_labels)
-      resolution_params$average <- optimize_resolution_leiden(H_ave, true_labels)
-    } else {
-      
-      resolution_params$standard <- 1.0
-      resolution_params$silhouette <- 1.0
-      resolution_params$ch <- 1.0
-      resolution_params$db <- 1.0
-      resolution_params$dunn <- 1.0
-      resolution_params$average <- 1.0
-    }
-
-    results$ensemble_clusters$mcla_leiden <- list(
-      standard = mcla_leiden_ensemble(H, resolution = resolution_params$standard),
-      silhouette = mcla_leiden_ensemble(H_sil, resolution = resolution_params$silhouette),
-      ch = mcla_leiden_ensemble(H_ch, resolution = resolution_params$ch),
-      db = mcla_leiden_ensemble(H_db, resolution = resolution_params$db),
-      dunn = mcla_leiden_ensemble(H_dunn, resolution = resolution_params$dunn),
-      average = mcla_leiden_ensemble(H_ave, resolution = resolution_params$average)
-    )
-
-    results$quality_indices$mcla_leiden <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$mcla_leiden$standard, "MCLA_Leiden_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$mcla_leiden$silhouette, "MCLA_Leiden_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$mcla_leiden$ch, "MCLA_Leiden_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$mcla_leiden$db, "MCLA_Leiden_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$mcla_leiden$dunn, "MCLA_Leiden_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$mcla_leiden$average, "MCLA_Leiden_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$mcla_leiden <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$mcla_leiden$average)
-      )
-    }
-  }
-  # ============================================================
-  # Hypergraph Spectral Clustering (HGSC)
-  # ============================================================
-  if ("HGSC" %in% ensemble_methods) {
-    message("Running Hypergraph Spectral Clustering(HGSC) algorithm...")
-
-    hgsc_ensemble <- function(H_weighted, k=NULL) {
-      # Calculate the Hypergraph Laplacian matrix
-      D_v <- diag(rowSums(H_weighted))  # Vertex degree matrix
-      D_e <- diag(colSums(H_weighted))  # Edge degree matrix
-
-      D_v_inv_sqrt <- diag(1 / sqrt(diag(D_v)))
-      D_e_inv <- diag(1 / diag(D_e))
-
-      # Normalized Laplacian matrix
-      L <- diag(nrow(H_weighted)) - D_v_inv_sqrt %*% H_weighted %*% D_e_inv %*% t(H_weighted) %*% D_v_inv_sqrt
-
-      estimate_optimal_k <- function(L) {
-        # Calculate the eigenvalues of the Laplacian matrix
-        eigen_values <- eigen(L, only.values = TRUE)$values
-
-        # Sort Eigenvalues from smallest to largest
-        eigen_values <- sort(eigen_values)
-
-        # Calculate the differences between consecutive eigenvalues
-        eigen_gaps <- diff(eigen_values)
-
-        # Find the index of the largest gap 
-        # This refers to the optimal number of clusters
-        k_est <- which.max(eigen_gaps) + 1
-
-        return(k_est)
-      }
-
-      if(is.null(k)) {
-        k <- estimate_optimal_k(L)
-      }
-      # Eigenvalues and vectors
-      eigen_result <- eigen(L)
-
-      eigenvalues_sorted <- sort(eigen_result$values, index.return = TRUE)
-      U <- eigen_result$vectors[, eigenvalues_sorted$ix[1:k]]
-
-      kmeans_result <- kmeans(U, centers = k, nstart = 20)
-
-      return(kmeans_result$cluster)
-    }
-
-    results$ensemble_clusters$hgsc <- list(
-      standard = hgsc_ensemble(HH),
-      silhouette = hgsc_ensemble(HH_sil),
-      ch = hgsc_ensemble(HH_ch),
-      db = hgsc_ensemble(HH_db),
-      dunn = hgsc_ensemble(HH_dunn),
-      average = hgsc_ensemble(HH_ave)
-    )
-
-    results$quality_indices$hgsc <- list(
-      standard = calculate_quality_indices(HH, results$ensemble_clusters$hgsc$standard, "HGSC_standard"),
-      silhouette = calculate_quality_indices(HH_sil, results$ensemble_clusters$hgsc$silhouette, "HGSC_silhouette"),
-      ch = calculate_quality_indices(HH_ch, results$ensemble_clusters$hgsc$ch, "HGSC_ch"),
-      db = calculate_quality_indices(HH_db, results$ensemble_clusters$hgsc$db, "HGSC_db"),
-      dunn = calculate_quality_indices(HH_dunn, results$ensemble_clusters$hgsc$dunn, "HGSC_dunn"),
-      average = calculate_quality_indices(HH_ave, results$ensemble_clusters$hgsc$average, "HGSC_average")
-    )
-
-    if (!is.null(true_labels)) {
-      results$ensemble_ari$hgsc <- list(
-        standard = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$standard),
-        silhouette = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$silhouette),
-        ch = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$ch),
-        db = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$db),
-        dunn = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$dunn),
-        average = adjustedRandIndex(true_labels, results$ensemble_clusters$hgsc$average)
-      )
-    }
-  }
-
-  ensemble_results <- new("EnsembleResults",
-                                ensemble_clusters = results$ensemble_clusters,
-                                ensemble_ari = results$ensemble_ari,
-                                ensemble_quality = results$quality_indices)
-  
-  
-  object@ensemble_results <- ensemble_results
-  
-  
-  return(object)
-}
 )
-

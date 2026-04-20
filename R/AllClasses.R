@@ -51,6 +51,21 @@ setClass("EnsembleResults",
            ensemble_quality = "list"
          ))
 
+#' An S4 class to store ensemble clustering results
+#'
+#' @slot ensemble_clusters A list of ensemble clustering results
+#' @slot ensemble_ari A list of ensemble ARI scores
+#' @slot ensemble_quality A list of ensemble quality metrics
+#' 
+#' @importFrom methods setClass
+#' @export
+setClass("EnsembleResultsStability",
+         slots = list(
+           ensemble_clusters = "list",
+           ensemble_ari = "list",
+           ensemble_quality = "list"
+         ))
+
 #' The numericORNULL Class
 #'
 #' An S4 class union that allows a slot to contain either a numeric vector or NULL.
@@ -66,20 +81,22 @@ setClassUnion("numericORNULL", c("numeric", "NULL"))
 #'
 #' @slot sce A SingleCellExperiment object
 #' @slot annotation A character vector of true labels
-#' @slot individual_results A list of individual clustering outputs
-#' @slot validation_metrics A list of internal validation scores
+#' @slot individual_results An IndividualResults object
+#' @slot validation_metrics A ValidationResults object
 #' @slot hypergraphs A list of hypergraph representations
-#' @slot ensemble_results A list of ensemble clustering results
-#' 
+#' @slot ensemble_results An EnsembleResults object
+#' @slot ensemble_results_stability An EnsembleResultsStability object
+#'
 #' @rdname ScEnsemble-class
 #' @export
 setClass("ScEnsemble",
          slots = list(
-           sce = "SingleCellExperiment",
-           annotation = "numericORNULL",
-           individual_results = "IndividualResults",
-           validation_metrics = "ValidationResults",
-           hypergraphs = "list",
-           ensemble_results = "EnsembleResults"
+           sce                        = "SingleCellExperiment",
+           annotation                 = "numericORNULL",
+           individual_results         = "IndividualResults",
+           validation_metrics         = "ValidationResults",
+           hypergraphs                = "list",
+           ensemble_results           = "EnsembleResults",
+           ensemble_results_stability = "EnsembleResultsStability"
          )
 )
