@@ -14,12 +14,12 @@ An S4 class to store data and results for ensemble clustering
 
 \item{\code{annotation}}{A character vector of true labels}
 
-\item{\code{individual_results}}{A list of individual clustering outputs}
+\item{\code{individual_results}}{An IndividualResults object}
 
-\item{\code{validation_metrics}}{A list of internal validation scores}
+\item{\code{validation_metrics}}{A ValidationResults object}
 
 \item{\code{hypergraphs}}{A list of hypergraph representations}
 
-\item{\code{ensemble_results}}{A list of ensemble clustering results}
+\item{\code{ensemble_results}}{An EnsembleResults object}
 }}
 

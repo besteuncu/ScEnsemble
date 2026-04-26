@@ -56,11 +56,6 @@ CreateScEnsemble <- function(sce, annotation = NULL) {
                              ensemble_clusters = list(),
                              ensemble_ari      = list(),
                              ensemble_quality  = list()
-      ),
-      ensemble_results_stability = new("EnsembleResultsStability",
-                                       ensemble_clusters = list(),
-                                       ensemble_ari      = list(),
-                                       ensemble_quality  = list()
       )
   )
 }

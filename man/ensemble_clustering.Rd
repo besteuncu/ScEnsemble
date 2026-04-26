@@ -13,6 +13,8 @@ ensemble_clustering(
   k = NULL,
   ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
     "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+  leiden_n_bootstrap = 10,
+  leiden_method = c("bootstrap", "silhouette"),
   ...
 )
 
@@ -24,6 +26,9 @@ ensemble_clustering(
   k = NULL,
   ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden", "MCLA_Hc",
     "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+  leiden_n_bootstrap = 10,
+  leiden_method = c("bootstrap", "silhouette"),
+  n_cores = 1L,
   ...
 )
 }

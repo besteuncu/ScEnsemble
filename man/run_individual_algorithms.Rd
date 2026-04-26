@@ -20,7 +20,7 @@ run_individual_algorithms(
   object,
   data,
   true_labels = NULL,
-  algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
+  algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "Monocle", "RaceID"),
   seed = 42,
   verbose = TRUE,
   n_cores = 1,

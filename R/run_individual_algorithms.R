@@ -43,11 +43,10 @@
 #' @importFrom SC3 sc3_estimate_k sc3
 #' @importFrom Seurat CreateSeuratObject NormalizeData FindVariableFeatures ScaleData RunPCA FindNeighbors FindClusters Embeddings Idents
 #' @importFrom SIMLR SIMLR_Estimate_Number_of_Clusters SIMLR
-#' @importFrom Rtsne Rtsne
-#' @importFrom cluster silhouette clusGap
+#' @importFrom cluster silhouette
 #' @importFrom RaceID SCseq filterdata getfdata compdist clustexp
 #' @importFrom mclust adjustedRandIndex
-#' @importFrom stats prcomp kmeans
+#' @importFrom stats median
 #' @importFrom methods is new
 #' @importFrom SummarizedExperiment assay assayNames rowData<-
 #' @importClassesFrom Matrix dgCMatrix Matrix
@@ -71,7 +70,7 @@
 setMethod("run_individual_algorithms", "ScEnsemble", 
           function(object, data,
                    true_labels=NULL,
-                   algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID"),
+                   algorithms = c("SC3", "CIDR", "Seurat", "SIMLR", "Monocle", "RaceID"),
                    seed = 42,
                    verbose = TRUE,
                    n_cores = 1,
@@ -97,7 +96,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
     return(TRUE)
   }
 
-  available_algorithms <- c("SC3", "CIDR", "Seurat", "SIMLR", "TSNE_Kmeans", "Monocle", "RaceID")
+  available_algorithms <- c("SC3", "CIDR", "Seurat", "SIMLR", "Monocle", "RaceID")
   if (!all(algorithms %in% available_algorithms)) {
     stop("Invalid algorithm(s) specified. Available algorithms: ", paste(available_algorithms, collapse = ", "))
   }
@@ -119,7 +118,11 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       rowData(sce)$feature_symbol <- rownames(data)
       sce <- sc3_estimate_k(sce)
       estimated_k <- sce@metadata[["sc3"]][["k_estimation"]]
-      sce <- sc3(sce, ks = estimated_k, biology = TRUE, n_cores = n_cores)
+      # SVM disabled: svm_num_cells=NULL avoids internal dimensionality errors
+      # that occur when SC3 predicts held-out cells in parallel workers.
+      # SVM is speed-only; correctness is unaffected.
+      sce <- sc3(sce, ks = estimated_k, biology = TRUE, n_cores = n_cores,
+                 svm_num_cells = NULL)
       sc3_data <- sce@metadata$sc3$consensus[[as.character(estimated_k)]]$consensus
       sc3_labels <- as.integer(sce@colData@listData[[paste0("sc3_", estimated_k, "_clusters")]])
       return(list(labels = sc3_labels, data = sc3_data))
@@ -134,16 +137,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       scData <- cidr::scPCA(scData)
       scData <- cidr::nPC(scData)
       cidr_data <- scData@dissim
-      max_k <- min(15, ncol(data) - 1)
-      sil_scores <- numeric(max_k - 1)
-      for (k_val in 2:max_k) {
-        scData_temp <- cidr::scCluster(scData, nCluster = k_val)
-        cluster_labels <- scData_temp@clusters
-        sil <- silhouette(cluster_labels, cidr_data)
-        sil_scores[k_val - 1] <- mean(sil[, "sil_width"])
-      }
-      estimated_k <- which.max(sil_scores) + 1
-      scData <- cidr::scCluster(scData, nCluster = estimated_k)
+      scData <- cidr::scCluster(scData)
       cidr_labels <- scData@clusters
       return(list(labels = cidr_labels, data = cidr_data))
     },
@@ -175,19 +169,6 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       return(list(labels = simlr_labels, data = simlr_data))
     },
 
-    TSNE_Kmeans = function(data) {
-      pca_result <- prcomp(t(data))
-      pca_data <- pca_result$x[, 1:min(50, ncol(pca_result$x))]
-      tsne_result <- Rtsne(pca_data, dims = 2, perplexity = 30,
-                           check_duplicates = FALSE)
-      tsne_data <- tsne_result$Y
-      gap_stat <- clusGap(tsne_data, FUNcluster = kmeans, nstart = 25, K.max = min(15, nrow(tsne_data)-1), B = 50)
-      optimal_k <- with(gap_stat, maxSE(Tab[, "gap"], Tab[, "SE.sim"]))
-      kmeans_result <- kmeans(tsne_data, centers = optimal_k, nstart = 25)
-      tsne_kmeans_labels <- kmeans_result$cluster
-      return(list(labels = tsne_kmeans_labels, data = tsne_data))
-    },
-
     Monocle = function(data) {
       check_monocle3()
       gene_metadata <- data.frame(gene_short_name = rownames(data), row.names = rownames(data))
@@ -206,7 +187,7 @@ setMethod("run_individual_algorithms", "ScEnsemble",
       if(is.data.frame(data)) {
         data <- as.matrix(data)
       }
-      sc <- SCseq(data)
+      sc <- SCseq(as.matrix(data))
       sc <- filterdata(sc, mintotal = 1000, minexpr = 5, minnumber = 1)
       fdata <- getfdata(sc)
       sc <- compdist(sc, metric = "pearson")

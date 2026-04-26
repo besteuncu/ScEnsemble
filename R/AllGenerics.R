@@ -71,7 +71,7 @@ setGeneric("generate_all_hypergraphs",
 #' 
 #' @return ScEnsemble object with ensemble_results slot filled
 #' @export
-setGeneric("ensemble_clustering", 
+setGeneric("ensemble_clustering",
            function(object,
                     expression_data,
                     true_labels = NULL,
@@ -79,5 +79,7 @@ setGeneric("ensemble_clustering",
                     k = NULL,
                     ensemble_methods = c("CSPA_Hc", "CSPA_Louvain", "CSPA_Leiden",
                                          "MCLA_Hc", "MCLA_Louvain", "MCLA_Leiden", "HGSC"),
+                    leiden_n_bootstrap = 10,
+                    leiden_method = c("bootstrap", "silhouette"),
                     ...)
              standardGeneric("ensemble_clustering"))
